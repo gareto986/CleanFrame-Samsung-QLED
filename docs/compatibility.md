@@ -1,6 +1,6 @@
 # TV compatibility evidence
 
-Updated 2 November 2026. The web launcher has a Tizen 5.0 installation minimum. This admits older packages; it does not establish that every rendering path, Samsung destination or native Home operation works on every admitted TV. Contributor observations and the maintainer’s checks are listed separately. Tizen 4.0 remains an owner-adapted experiment.
+Updated 17 November 2026. The web launcher has a Tizen 5.0 installation minimum. This admits older packages; it does not establish that every rendering path, Samsung destination or native Home operation works on every admitted TV. Contributor observations and the maintainer’s checks are listed separately. Tizen 4.0 remains an owner-adapted experiment.
 
 ## Recorded results
 
@@ -24,6 +24,7 @@ Updated 2 November 2026. The web launcher has a Tizen 5.0 installation minimum. 
 | TQ50LS03FAUXXC (2025 Frame), Tizen 9, ARMv7, firmware T-PTMFDEUC-0090-1301.0 | A separate third-party web launcher ran; no CleanFrame source/build result supplied | Tested execution and readback routes blocked; no native baseline or writes. Supported power-on option resumed a source rather than the web app | [Issue #16](https://github.com/nthnclrk/CleanFrame/issues/16) |
 | QN55Q60BAFXZC, Tizen 6.5, ARMv7, firmware T-NKLBAKUC-1710.0 | No CleanFrame launcher result supplied; a separately signed UI app queried Home as UID 5001 | No verified UID 901 transport or Home-only assignment; same-value operation call failed; saved query predates a later settings change | [Issue #21](https://github.com/nthnclrk/CleanFrame/issues/21) |
 | GQ65QN85DBTXZG (QN85D), Tizen 9, ARMv7, firmware 2130.0 / T-PTMDDEUC | Contributor reports adapted CleanFrame-DE 0.6.2 installs, navigates and opens YouTube; last-app autorun works when it was last used | No native writes performed; exact native transport, API contract and restore path unverified | [Issue #24](https://github.com/nthnclrk/CleanFrame/issues/24) |
+| QN82Q6DTAFXZA (2020 Q60T), Tizen 5.5, ARMv7, firmware T-NKLAKUC-2743.0 | Owner reports a personal 0.8 build (own identity, through Apps2Samsung) installs beside their other apps, launches, and that remote navigation and the optional Plex/Home Assistant/sports/weather/headlines/Immich photos/Moonlight integrations work | Not attempted and treated as unreachable: `sdb capability` shows `intershell_support:disabled` and `sdb shell echo` returns nothing, so current Home values cannot be read and no exact-value recovery baseline can be captured. Firmware is outside the reference and LS03T guards | Owner report, this session |
 
 Contributor reports have not been reproduced by the maintainer. Browser regression checks cannot verify a TV compositor, native Samsung destination, remote feel or cold boot. The exact Q60B production firmware revision remains to be established: its reported `Version` field was a placeholder, alongside a dated build ID. It is not an exact-firmware allowlist entry.
 

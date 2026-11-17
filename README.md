@@ -72,6 +72,8 @@ The optional [2020 LS03T profile](scripts/native-home/frame-2020/README.md) supp
 
 The detailed [device record](docs/tv-status.md) separates observed results from SDK responses. Native Home/startup uses undocumented, guarded helpers; it is optional and can fail after firmware changes. Keep a recovery baseline before attempting that work. The app can be opened manually without it.
 
+For power-on behaviour, the physical Home button, the remote's branded app buttons and what is and is not reachable, see [Home button and power-on](docs/home-and-power-on.md).
+
 ## Develop and check
 
 ```sh
