@@ -125,6 +125,25 @@ class ToolTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_integrations(self.root)
 
+    def test_personal_widget_uses_a_stable_owner_identity(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('package_personal', ROOT / 'scripts/package-personal.py')
+        personal = importlib.util.module_from_spec(spec); spec.loader.exec_module(personal)
+        (self.root / 'app/assets').mkdir(parents=True)
+        (self.root / 'app/assets/integrations.js').write_text('window.CleanFrameIntegrations = null;\n')
+        (self.root / '.local/integrations.json').write_text(json.dumps({'pc': {'helper': 'http://pc.example:8011'}}))
+        personal.main(self.root)
+        first = json.loads((self.root / '.local/identity.json').read_text())
+        personal.main(self.root)
+        self.assertEqual(json.loads((self.root / '.local/identity.json').read_text()), first)
+        with zipfile.ZipFile(self.root / 'dist/CleanFrame-personal-unsigned.wgt') as archive:
+            self.assertEqual(manifest_identity(archive.read('config.xml')), first)
+            self.assertIn(b'pc.example', archive.read('assets/integrations.js'))
+        self.assertNotEqual(first['package_id'], 'nClrkHome1')
+        (self.root / '.local/identity.json').write_text(json.dumps({'package_id': 'nClrkHome1', 'app_id': 'nClrkHome1.FrameHome'}))
+        with self.assertRaises(ValueError):
+            personal.main(self.root)
+
     def test_widget_identity_overlay_and_private_files(self):
         original = (self.root / 'app/config.xml').read_bytes()
         identity = {'package_id': 'AbCdEf1234', 'app_id': 'AbCdEf1234.MyHome'}

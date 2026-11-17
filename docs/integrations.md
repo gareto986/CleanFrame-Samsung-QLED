@@ -30,6 +30,16 @@ Entity IDs must look like `domain.object_id`; anything else is ignored. Quick bu
 
 `npm run dev` serves your settings to the browser preview. A host-restricted `/proxy` passes requests to the configured hosts plus Open-Meteo, NWS and ESPN, because those services do not allow cross-origin browser requests. The TV fetches directly under the manifest's `<access origin="*">`. `npm run dev:public` and public exports ignore the file.
 
+## Build for your TV without the SDK signing setup
+
+`npm run package` signs through the official Tizen CLI and runs on macOS or Linux. On Windows, or wherever another signing tool such as Apps2Samsung is used, build an unsigned personal widget instead:
+
+```sh
+npm run package:personal
+```
+
+This writes `dist/CleanFrame-personal-unsigned.wgt` with your integration settings. It uses `package_id`/`app_id` from `.local/signing.json` if set. Otherwise it creates `.local/identity.json` once, with a random package ID, and reuses it for every later build, so updates install in place. Keep that file. The widget never uses the source identity, so it installs beside other apps, such as TV Dashboard, instead of replacing them. Signing and installation remain the owner's step; the repo has not verified Apps2Samsung (see [compatibility](compatibility.md)).
+
 ## Privacy
 
 A personal widget built with `npm run package` contains `.local/integrations.json` as `assets/integrations.js`, including the Home Assistant token and Immich key. That matches TV Dashboard's own package. Treat the signed widget as private: never publish it, attach it to an issue or share it. `npm run export:public` always uses the empty default, and its checks fail if the file differs.

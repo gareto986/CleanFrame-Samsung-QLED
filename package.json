@@ -7,6 +7,7 @@
     "dev": "node scripts/python.mjs scripts/preview.py",
     "check": "npm run lint && node scripts/python.mjs scripts/check.py && npm run check:device",
     "package": "node scripts/python.mjs scripts/package.py",
+    "package:personal": "node scripts/python.mjs scripts/package-personal.py",
     "tv:info": "node scripts/python.mjs scripts/tv.py info",
     "tv:install": "node scripts/python.mjs scripts/tv.py install",
     "tv:launch": "node scripts/python.mjs scripts/tv.py launch",
