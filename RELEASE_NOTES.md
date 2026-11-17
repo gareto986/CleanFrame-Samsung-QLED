@@ -1,3 +1,11 @@
+# CleanFrame 0.8.0
+
+- Home is now a single rails layout, replacing List and Dock. A photo header holds the clock, date and current weather, and Home controls are Inputs, All apps and Settings. Earlier layout, focus and material values stay saved but no longer change Home.
+- Optional integrations, adapted from the owner's TV Dashboard and restyled for CleanFrame: Plex (Continue watching and recently added), Home Assistant (quick buttons and an All rooms panel), sports scores, a weather forecast with alerts, RSS headlines and a My photos background from Immich. They are configured in ignored `.local/integrations.json`; public exports contain none. See [Home integrations](docs/integrations.md).
+- A fresh Home starts with nine US streaming apps. Saved Australian defaults still load. Older TVs' numeric store IDs are recognised, and installed apps are matched by ID or name on the first visible launch.
+- The manifest adds the internet privilege and `<access origin="*">` for owner-configured hosts. The unused glass materials are no longer packaged, which shrinks the widget by about 4.7 MB.
+- Browser checks cover the rails, every integration against synthetic responses, failure and retry, and hidden startup. No TV was contacted. The integrations, default app IDs and new layout still need physical checks on a TV.
+
 # CleanFrame 0.7.0
 
 CleanFrame remains a starting point to fork and adapt for your own Samsung TV.

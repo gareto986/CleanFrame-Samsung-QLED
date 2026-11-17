@@ -1,8 +1,8 @@
 # CleanFrame
 
-A quieter home screen for Samsung The Frame. Your apps, a photograph and the time, with an interface made for the TV remote.
+A quieter home screen for Samsung TVs. Your apps, a photograph and the time, with optional Plex, Home Assistant, sports, weather and headlines, all made for the TV remote.
 
-![CleanFrame browser preview using the bundled Manrope font](docs/images/cleanframe-dock.jpg)
+![CleanFrame browser preview with synthetic sample data for the optional Plex, Home Assistant and headline sections](docs/images/cleanframe-rails.jpg)
 
 I built CleanFrame for one TV: my own Samsung The Frame, running Tizen. I'm sharing the code and setup notes as a starting point for other people to build on.
 
@@ -27,14 +27,14 @@ The public preview uses the included Manrope, Geist and Newsreader fonts.
 
 ## What you can change
 
-- Choose a List or Dock layout, with icons, names or both.
-- Use a photograph, light or dark background, with a simple 12-hour clock.
-- Adjust typography, focus and glass materials through the same Settings interface.
+- A rails Home: your apps, then optional Plex, Home Assistant, sports and weather rails, with headlines along the bottom. See [Home integrations](docs/integrations.md); public builds include none.
+- Use a wallpaper, your own Immich album, or a light or dark background, with a 12-hour clock, the date and current weather.
+- Adjust typography through the same Settings interface.
 - Choose and reorder Home apps; discover installed apps on the TV.
 - Select from fifteen wallpapers and save your preferences locally.
 - Open Settings → Samsung → Inputs to choose a discovered HDMI source.
 
-The glass and blur are rendered ahead of time. The TV loads the finished images and uses transforms and opacity for focus feedback.
+Panel blur is rendered ahead of time. The TV loads the finished images and uses transforms and opacity for focus feedback.
 
 ## Use a coding agent
 

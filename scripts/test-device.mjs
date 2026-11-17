@@ -161,3 +161,26 @@ test('unknown and invalid ports cannot be substituted and a newer request cancel
   h.sourceRequests[0].ok(video); assert.equal(h.changes.length, 0);
   h.sourceRequests[1].ok(video); assert.equal(h.changes[0].source.number, 2);
 });
+
+test('older TVs list numeric store apps and match known brands by ID or name', () => {
+  const h = harness(), results = [];
+  h.device.apps((error, apps) => results.push({ error, apps }));
+  h.requests[0].ok([
+    { id: '111299001912', name: 'YouTube', show: true },
+    { id: '3201512006963', name: 'Plex', show: true },
+    { id: '3201999999999', name: 'Hulu', show: true },
+    { id: '3201888888888', name: 'Hulu', show: true },
+    { id: '3201777777777', name: 'Family Games', show: true },
+    { id: '12345', name: 'Too short', show: true }
+  ]);
+  const apps = results[0].apps, by = Object.fromEntries(apps.map(a => [a.appId, a]));
+  assert.equal(results[0].error, null);
+  assert.equal(by['111299001912'].brand, 'youtube');
+  assert.equal(by['3201512006963'].brand, 'plex');
+  assert.equal(by['3201999999999'].brand, 'hulu', 'a renamed or regional ID still matches by name');
+  assert.equal(by['3201888888888'].brand, '', 'only one installed app claims a brand');
+  assert.equal(by['3201777777777'].brand, '');
+  assert.ok(!by['12345'], 'non-store numeric IDs stay hidden');
+  assert.equal(h.device.brandOf('3201512006963', ''), 'plex');
+  assert.equal(h.device.brandOf('Unknown.App', ''), '');
+});

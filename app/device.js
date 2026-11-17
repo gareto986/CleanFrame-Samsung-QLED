@@ -1,13 +1,21 @@
 /* Public Tizen application APIs. No Mac server, network address or credentials. */
 (function () {
   'use strict';
+  /* Known launch targets per brand. Tizen 9 package IDs come from the reference TV; the
+     numeric IDs are Samsung's long-standing store IDs used on older TVs such as 2020 models.
+     YouTube and Plex numeric IDs were confirmed by the owner's TV Dashboard on a 2020 Q60T;
+     the others are unverified. Installed-app discovery replaces them with the IDs the TV
+     reports, matching by ID or by app name. */
   var IDS = {
-    stremio: 'IkWsFHtOY9.Stremio', netflix: 'org.tizen.netflix-app',
-    disneyplus: 'MCmYXNxgcu.DisneyPlus', youtube: '9Ur5IzDKqV.TizenYouTube',
-    appletv: 'com.samsung.tv.aria-video', primevideo: 'org.tizen.primevideo',
-    abciview: 'mWK87Xghap.ABCiview', sbs: 'OyE7OuxlUi.SBSOnDemand',
-    applemusic: 'org.tizen.apple.apple-music'
+    stremio: ['IkWsFHtOY9.Stremio'], netflix: ['org.tizen.netflix-app', '3201907018807'],
+    disneyplus: ['MCmYXNxgcu.DisneyPlus', '3201901017640'], youtube: ['9Ur5IzDKqV.TizenYouTube', '111299001912'],
+    appletv: ['com.samsung.tv.aria-video', '3201807016597'], primevideo: ['org.tizen.primevideo', '3201910019365'],
+    abciview: ['mWK87Xghap.ABCiview'], sbs: ['OyE7OuxlUi.SBSOnDemand'],
+    applemusic: ['org.tizen.apple.apple-music'], hbomax: ['cj37Ni3qXM.HBONow', '3201601007230'],
+    hulu: ['LBUAQX1exg.Hulu', '3201601007625'], plex: ['3201512006963'], spotify: ['rJeHak5zRg.Spotify', '3201606009684']
   };
+  var NAMES = { netflix: /^netflix$/i, youtube: /^youtube$/i, disneyplus: /^disney\s*\+$|^disney plus$/i, primevideo: /^(amazon )?prime video$/i,
+    hbomax: /^(hbo )?max$|^hbo max$/i, hulu: /^hulu$/i, appletv: /^apple tv\+?$/i, plex: /^plex$/i, spotify: /^spotify/i };
   var STREAMING = ['as6cYRgkPy.Binge', '73iTZRTc34.Stan', '5b8c3eb16b.BeamCTVDev',
     'cj37Ni3qXM.HBONow', 'LBUAQX1exg.Hulu', 'gzcc4LRFBF.Peacock', 'rJyOSqC6Up.CBSAllAccess',
     'Rk72oKFsRS.OtterKidsProd', '70fRFUwYlD.OtterGAProd', 'PvWgqxV3Xa.YouTubeTV',
@@ -16,7 +24,7 @@
     'KaLitts8bq.tenplaySamsungTizen', 'eYuOiOLYQX.KayoSports', 'Ne2ZsPWdKl.9NOW',
     '3KA0pm7a7V.TubiTV', 'rJeHak5zRg.Spotify', 'icp4AvUPiA.7plus'];
   var CONSUMER_SYSTEM = ['org.tizen.browser', 'com.microsoft.copilot'];
-  var EXTRA_BRANDS = {'rJeHak5zRg.Spotify': 'spotify', '5b8c3eb16b.BeamCTVDev': 'hbomax', 'cj37Ni3qXM.HBONow': 'hbomax', '3KA0pm7a7V.TubiTV': 'tubi'};
+  var EXTRA_BRANDS = {'5b8c3eb16b.BeamCTVDev': 'hbomax', '3KA0pm7a7V.TubiTV': 'tubi'};
   var INTERNAL = ['adplatform.ADPlayer', 'WykOS4t4F0.cmsWebApp', '25emanual3.emanual',
     'd0m1lV1nt2.emanual', '2022ePop01.SmartTV',
     'ZODRT12q2l.WebAccountExtension', 'ByJlgt0XeD.CastSettingsApp', 'tv6pbVMQFF.PrivacyChoices'];
@@ -104,7 +112,13 @@
   }
   function launch(brand, done) {
     if (!IDS[brand]) { done({message: 'This app has no launch target.'}); return; }
-    launchApp(IDS[brand], done);
+    launchApp(IDS[brand][0], done);
+  }
+  function brandOf(id, name) {
+    var found = '';
+    Object.keys(IDS).some(function (brand) { if (IDS[brand].indexOf(id) >= 0) { found = brand; return true; } return false; });
+    if (!found) Object.keys(NAMES).some(function (brand) { if (NAMES[brand].test(String(name || '').trim())) { found = brand; return true; } return false; });
+    return found;
   }
   function art(done) {
     if (!api()) { unavailable(done); return; }
@@ -123,21 +137,22 @@
     var finish = bounded(done, 20000);
     try {
       api().getAppsInfo(function (list) {
-        var known = {}, seen = {}, result = [], self = selfId();
-        Object.keys(IDS).forEach(function (brand) { known[IDS[brand]] = brand; });
+        var seen = {}, taken = {}, result = [], self = selfId(), order = Object.keys(IDS);
         list.forEach(function (a) {
-          var primary = !!known[a.id], stream = STREAMING.indexOf(a.id) >= 0;
-          var consumer = /^[A-Za-z0-9]{10}\.[A-Za-z0-9_-]+$/.test(a.id) || CONSUMER_SYSTEM.indexOf(a.id) >= 0;
+          var brand = brandOf(a.id, a.name), primary = !!brand && !taken[brand], stream = STREAMING.indexOf(a.id) >= 0;
+          // Older Samsung TVs report store apps by numeric ID.
+          var consumer = /^[A-Za-z0-9]{10}\.[A-Za-z0-9_-]+$/.test(a.id) || /^[0-9]{9,13}$/.test(a.id) || CONSUMER_SYSTEM.indexOf(a.id) >= 0;
           if (a.id === self || INTERNAL.indexOf(a.id) >= 0 || seen[a.id] || !a.name || (!primary && !stream && (!a.show || !consumer))) return;
           if (!primary && /(?:service|worker|preview|promotion|plugin|launcher|test|sdk|^ep[ -]|factory|daemon)/i.test(a.name + ' ' + a.id)) return;
           if (/-dummy$/.test(a.id) || a.id === 'com.samsung.tv.cobalt-yt') return;
           seen[a.id] = true;
-          result.push({ appId: a.id, name: a.name, brand: known[a.id] || EXTRA_BRANDS[a.id] || '', icon: a.iconPath || '', rank: primary ? Object.keys(IDS).indexOf(known[a.id]) : (stream ? 20 : 30) });
+          if (primary) taken[brand] = true;
+          result.push({ appId: a.id, name: a.name, brand: primary ? brand : EXTRA_BRANDS[a.id] || '', icon: a.iconPath || '', rank: primary ? order.indexOf(brand) : (stream ? 20 : 30) });
         });
         result.sort(function (a, b) { return a.rank - b.rank || a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
         finish(null, result);
       }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
-  window.FrameDevice = { launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps, sources: sources, setSource: setSource, cancelSource: cancelSource };
+  window.FrameDevice = { brandOf: brandOf, launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps, sources: sources, setSource: setSource, cancelSource: cancelSource };
 }());

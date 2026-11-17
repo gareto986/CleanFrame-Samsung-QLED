@@ -9,6 +9,7 @@ import json
 import re
 import zipfile
 from local_config import override_identity
+from integrations import integration_overlay
 from private_files import check_widget, generated_path, private_path, secret_content
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,7 +37,8 @@ def is_runtime_source(name):
     """Keep retained rendering tools and legacy layout assets out of the widget."""
     if name in ['grid.css', 'optics.js']:
         return False
-    if name.startswith(('assets/grid/', 'assets/vendor/')):
+    # Glass materials served the earlier Dock and List; the rails Home uses flat plates.
+    if name.startswith(('assets/grid/', 'assets/vendor/', 'assets/materials/')):
         return False
     return not re.fullmatch(r'assets/wallpapers/[^/]+-glass-\d+\.png', name)
 
@@ -70,6 +72,8 @@ def write_widget_archive(output, root=ROOT, include_private=True, identity=None)
     """Create an unsigned archive without reading signing or device settings."""
     app = root / 'app'
     overlay = font_overlay(root, include_private)
+    # Personal builds carry the owner's integration settings; public exports never do.
+    overlay.update(integration_overlay(root, include_private))
     if identity is not None:
         overlay['config.xml'] = override_identity((app / 'config.xml').read_bytes(), identity)
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, allowZip64=False) as package:

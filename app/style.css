@@ -633,3 +633,148 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .l-list .quiet-utils.is-text .u-content>*+*{margin-left:0;margin-right:0}
 .quiet-utils.is-text .u-content>*+*{margin-left:0}
 .l-list .quiet-utils.is-text .u .u-content>*+*{margin-right:0}
+
+/* ---------- Rails Home (0.8) ----------
+   A calm photo header with the clock and weather, then one horizontal rail per section:
+   apps, Plex, Home Assistant, sports and the forecast. Headlines run along the bottom.
+   Focus uses CleanFrame's plate and transform/opacity only; no live blur. */
+.ambient{position:absolute;left:0;top:0;width:1920px;height:1080px;max-width:none;object-fit:cover;opacity:0;transition:opacity 1600ms linear}
+.ambient.is-on{opacity:1}
+.bg-photo .ambient{display:none}
+.bg .shade{height:420px;background:linear-gradient(to bottom,rgba(4,10,12,.46),rgba(4,10,12,.22) 220px,rgba(4,10,12,0))}
+.bg .scrim{top:420px;height:660px;background:linear-gradient(to bottom,rgba(4,10,12,0),rgba(4,10,12,.48) 42%,rgba(4,10,12,.66))}
+.bg::after{content:"";position:absolute;left:0;top:0;width:1920px;height:1080px;background:rgba(4,10,12,.5);opacity:0;transition:opacity 320ms linear}
+.is-deep .bg::after{opacity:1}
+
+.masthead{position:absolute;left:112px;top:56px;display:flex;flex-direction:column;align-items:flex-start;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.masthead .clock{font-size:104px;line-height:112px;font-weight:300;letter-spacing:-3px}
+.mh-date{font-size:32px;line-height:40px;font-weight:500;letter-spacing:-.3px;color:var(--mute)}
+.mh-weather{display:flex;align-items:center;margin-top:14px;font-size:30px;line-height:40px;font-weight:500}
+.mh-weather .ico{width:44px;height:44px;stroke-width:1.6}
+.mh-temp{font-size:40px;font-weight:600;letter-spacing:-.6px}
+.mh-desc{color:var(--mute)}
+.mh-weather>*+*{margin-left:14px}
+.bg-dark .masthead,.bg-light .masthead{text-shadow:none}
+
+.home .utils{position:absolute;right:112px;top:72px;left:auto;display:flex;align-items:center}
+.home .utils .u{color:#f6f1e7;opacity:.84;text-shadow:0 1px 2px rgba(14,10,6,.4)}
+.home .utils.is-awake .u{opacity:.7}
+.home .utils .u.is-focus{opacity:1;background:var(--solid);color:var(--solid-ink);text-shadow:none}
+.bg-dark .home .utils .u,.bg-light .home .utils .u{color:var(--ink);text-shadow:none}
+.bg-dark .home .utils .u.is-focus,.bg-light .home .utils .u.is-focus{color:var(--solid-ink)}
+.home .u>*+*{margin-left:12px}
+.alerts{position:absolute;right:112px;top:152px;max-width:900px;height:48px;padding:0 20px;border-radius:24px;display:none;align-items:center;font-size:24px;line-height:32px;font-weight:600;color:#241a08;background:#f3c56d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alerts.is-on{display:flex}
+.alerts .ico{width:28px;height:28px;stroke-width:2}
+.alerts>*+*{margin-left:10px}
+
+.rails{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.rails-in{position:absolute;left:0;top:0;width:1920px}
+.rail{position:absolute;left:112px;top:0;width:1696px;pointer-events:auto;transition:transform 320ms var(--ease),opacity 220ms linear}
+.rail.is-next{opacity:.66}
+/* The next section peeks above the headlines, fading out rather than sitting under them. */
+.rail.is-next .rail-track{-webkit-mask-image:linear-gradient(to bottom,#000 20px,rgba(0,0,0,0) 140px);mask-image:linear-gradient(to bottom,#000 20px,rgba(0,0,0,0) 140px)}
+.rail.is-away{opacity:0;pointer-events:none}
+.rail-label{height:52px;display:flex;align-items:baseline;font-size:30px;line-height:40px;font-weight:600;letter-spacing:-.3px;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.rail-note{font-size:24px;font-weight:500;letter-spacing:0;color:var(--mute)}
+.rail-label>*+*{margin-left:20px}
+.bg-dark .rail-label,.bg-light .rail-label{text-shadow:none}
+.rail-view{position:absolute;left:-24px;width:1744px;overflow:hidden}
+.rail-view.more-after{-webkit-mask-image:linear-gradient(to right,#000 1600px,rgba(0,0,0,0) 1744px);mask-image:linear-gradient(to right,#000 1600px,rgba(0,0,0,0) 1744px)}
+.rail-view.more-before{-webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0),#000 120px);mask-image:linear-gradient(to right,rgba(0,0,0,0),#000 120px)}
+.rail-view.more-before.more-after{-webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0),#000 120px,#000 1600px,rgba(0,0,0,0) 1744px);mask-image:linear-gradient(to right,rgba(0,0,0,0),#000 120px,#000 1600px,rgba(0,0,0,0) 1744px)}
+.rail-track{position:absolute;left:24px;top:24px;transition:transform 280ms var(--ease)}
+
+.rt{position:absolute;left:0;top:0;border-radius:28px;overflow:hidden;color:var(--ink);background:rgba(10,12,14,.34);box-shadow:inset 0 1px 0 rgba(255,250,240,.08);transform-origin:50% 50%;transition:transform 200ms var(--ease),background-color 140ms linear,opacity 160ms linear}
+.rt.is-focus{background:var(--plate);box-shadow:var(--plate-edge),0 18px 40px rgba(0,0,0,.28)}
+.rt.is-out{opacity:0}
+.bg-dark .rt,.bg-light .rt{background:var(--plate);box-shadow:none}
+.bg-dark .rt.is-focus,.bg-light .rt.is-focus{background:var(--lift)}
+.rt .ico{position:absolute;stroke-width:1.6}
+
+.k-app .rt-mark{position:absolute;left:28px;top:30px;opacity:.92}
+.k-app .rt-name{position:absolute;left:12px;right:12px;bottom:22px;text-align:center;font-size:25px;line-height:32px;font-weight:500;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.86}
+.k-app.is-focus .rt-mark,.k-app.is-focus .rt-name{opacity:1}
+.rail-apps .rt{background:none;box-shadow:none}
+.rail-apps .rt.is-focus{background:var(--plate);box-shadow:var(--plate-edge),0 18px 40px rgba(0,0,0,.24)}
+.rail-apps .rt.is-sel{background:rgba(255,250,240,.08)}
+.k-add,.k-status{display:flex;align-items:center;padding:0 28px;font-size:26px;line-height:34px;font-weight:500}
+.k-add .ico,.k-status .ico{position:static;width:36px;height:36px;flex:none}
+.k-add>*+*,.k-status>*+*{margin-left:16px}
+.rt-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rt-hint{margin-left:auto!important;padding-left:16px;flex:none;font-size:22px;color:var(--mute)}
+.k-status{color:var(--mute)}
+.k-status.is-focus{color:var(--ink)}
+
+.k-poster,.k-more{background:none!important;box-shadow:none!important;overflow:visible}
+.pt-art{position:absolute;left:0;top:0;width:160px;height:240px;border-radius:16px;overflow:hidden;background:rgba(246,241,231,.1);box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.pt-art img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
+.pt-art.is-missing .pt-fallback{display:block}
+.pt-fallback{display:none;position:absolute;left:12px;right:12px;top:80px;text-align:center;font-size:22px;line-height:28px;font-weight:600;color:var(--mute)}
+.pt-progress{position:absolute;left:12px;right:12px;bottom:10px;height:6px;border-radius:3px;background:rgba(0,0,0,.45);overflow:hidden}
+.pt-progress i{display:block;height:6px;background:#f6f1e7}
+.pt-title{position:absolute;left:0;right:0;top:254px;font-size:23px;line-height:30px;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.pt-sub{position:absolute;left:0;right:0;top:286px;font-size:20px;line-height:26px;font-weight:500;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-sub b{font-weight:700;color:var(--ink)}
+.k-poster.is-focus .pt-art,.k-more.is-focus .pt-art{box-shadow:0 0 0 4px #f6f1e7,0 18px 40px rgba(0,0,0,.4)}
+.pt-more{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:600}
+.pt-more .ico{position:static;width:48px;height:48px;margin-bottom:12px}
+
+.k-ha .ha-ico,.k-rooms .ha-ico{left:24px;top:20px;width:40px;height:40px}
+.k-ha .ha-name,.k-rooms .ha-name{position:absolute;left:24px;right:20px;bottom:20px;font-size:25px;line-height:32px;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-ha .ha-state,.k-rooms .ha-state{position:absolute;right:22px;top:24px;font-size:20px;line-height:28px;font-weight:600;color:var(--mute)}
+.k-rooms .ha-state{left:80px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-ha.is-on .ha-ico{color:#ffd28a}
+.k-ha.is-on .ha-state{color:#ffd28a}
+.k-ha.is-on{background:rgba(255,206,138,.16)}
+.k-ha.is-stale{opacity:.5}
+
+.tm-logo{position:absolute;left:24px;top:22px;width:56px;height:56px;object-fit:contain}
+.tm-blank{border-radius:28px;background:rgba(246,241,231,.12)}
+.tm-name{position:absolute;left:96px;right:20px;top:28px;font-size:27px;line-height:34px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-name small{margin-left:10px;font-size:21px;font-weight:500;color:var(--mute)}
+.tm-line{position:absolute;left:24px;right:20px;top:88px;font-size:23px;line-height:30px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-detail{font-weight:500;color:var(--mute)}
+.tm-line.k-win{color:#a8e4bb}
+.tm-line.k-off,.tm-line.k-error{color:var(--mute)}
+.tm-live{display:inline-block;margin-right:10px;padding:0 10px;border-radius:6px;font-size:17px;line-height:24px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:#d9443f;vertical-align:2px}
+
+.k-now .wx-big{left:24px;top:28px;width:64px;height:64px}
+.k-now .wx-temp{position:absolute;left:108px;top:22px;font-size:64px;line-height:72px;font-weight:300;letter-spacing:-2px}
+.k-now .wx-label{position:absolute;left:24px;right:20px;top:106px;font-size:26px;line-height:32px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-now .wx-facts{position:absolute;left:24px;right:20px;top:138px;font-size:21px;line-height:28px;font-weight:500;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-hour,.k-day{text-align:center}
+.k-hour .ico,.k-day .ico{left:38px;top:58px;width:44px;height:44px}
+.wx-when{position:absolute;left:0;right:0;top:20px;font-size:21px;line-height:28px;font-weight:600;color:var(--mute)}
+.wx-t{position:absolute;left:0;right:0;top:110px;font-size:30px;line-height:36px;font-weight:600}
+.wx-pop{position:absolute;left:0;right:0;top:144px;font-size:20px;line-height:24px;font-weight:600;color:#9ccaff}
+.k-day .wx-pop{color:var(--mute)}
+
+.ticker{position:absolute;left:0;top:1008px;width:1920px;height:72px;display:none;overflow:hidden;background:linear-gradient(to bottom,rgba(4,8,10,0),rgba(4,8,10,.55) 40%)}
+.ticker.is-on{display:block}
+.ticker-track{position:absolute;left:112px;top:22px;white-space:nowrap;will-change:transform}
+.headline{display:inline-block;margin-right:72px;font-size:25px;line-height:34px;font-weight:500;color:rgba(246,241,231,.9)}
+.hl-tag{display:inline-block;margin-right:14px;padding:0 10px;border-radius:6px;font-size:16px;line-height:24px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(246,241,231,.78);box-shadow:inset 0 0 0 1.5px rgba(246,241,231,.4);vertical-align:3px}
+.hl-src{margin-left:14px;font-size:21px;color:rgba(246,241,231,.6)}
+.bg-light .ticker{background:linear-gradient(to bottom,rgba(242,239,232,0),rgba(242,239,232,.85) 40%)}
+.bg-light .headline,.bg-light .hl-tag,.bg-light .hl-src{color:var(--ink)}
+
+/* Home Assistant rooms (a sheet) */
+.ha-view{position:absolute;left:140px;top:236px;width:1664px;height:744px;overflow:hidden}
+.ha-in{position:absolute;left:0;top:0;width:1664px;transition:transform 220ms var(--ease)}
+.ha-head{position:absolute;left:4px;top:24px;font-size:30px;line-height:40px;font-weight:600;letter-spacing:-.3px;color:var(--mute)}
+.ha-tile{position:absolute;left:0;top:0;width:400px;height:136px;border-radius:28px;background:rgba(246,241,231,.07);transition:background-color 140ms linear}
+.ha-tile .ha-ico{position:absolute;left:24px;top:22px;width:40px;height:40px;stroke-width:1.6}
+.ha-tile .ha-name{position:absolute;left:24px;right:24px;bottom:20px;font-size:27px;line-height:34px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ha-tile .ha-state{position:absolute;right:24px;top:26px;font-size:22px;line-height:28px;font-weight:600;color:var(--mute)}
+.ha-tile.is-focus{background:var(--plate);box-shadow:var(--plate-edge)}
+.ha-tile.is-focus .panel-content{transform:scale(1.03)}
+.ha-tile.is-on .ha-ico,.ha-tile.is-on .ha-state{color:#ffd28a}
+.ha-tile.is-na{opacity:.5}
+.ha-before{left:940px;top:196px}
+.ha-after{left:940px;top:992px}
+
+.swatch-photos{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f6f80,#c79f6e);color:#fff}
+.swatch-photos .ico{width:28px;height:28px}
+
+@media(prefers-reduced-motion:reduce){.rail,.rail-track,.rt,.ha-in,.ambient{transition:opacity 120ms linear!important}.ha-tile.is-focus .panel-content{transform:none}}

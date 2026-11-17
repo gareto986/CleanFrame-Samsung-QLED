@@ -104,6 +104,27 @@ class ToolTests(unittest.TestCase):
             with self.subTest(length=len(value)), self.assertRaises(ValueError):
                 read_password(good, self.root)
 
+    def test_integration_settings_reach_only_a_personal_build(self):
+        from integrations import allowed_hosts, load_integrations
+        (self.root / 'app/assets').mkdir(parents=True)
+        public = b'window.CleanFrameIntegrations = null;\n'
+        (self.root / 'app/assets/integrations.js').write_bytes(public)
+        settings = {'plex': {'url': 'http://plex.example:32400'}, 'homeAssistant': {'url': 'https://ha.example:8123', 'token': 'synthetic'},
+                    'news': {'feeds': [{'url': 'https://news.example/feed.xml'}]}}
+        (self.root / '.local/integrations.json').write_text(json.dumps(settings))
+        personal, public_widget = self.root / 'personal.wgt', self.root / 'public.wgt'
+        write_widget_archive(personal, root=self.root, include_private=True)
+        write_widget_archive(public_widget, root=self.root, include_private=False)
+        with zipfile.ZipFile(personal) as archive:
+            self.assertIn(b'"token":"synthetic"', archive.read('assets/integrations.js'))
+        with zipfile.ZipFile(public_widget) as archive:
+            self.assertEqual(archive.read('assets/integrations.js'), public)
+        self.assertEqual(allowed_hosts(load_integrations(self.root)), {'plex.example', 'ha.example', 'news.example', 'api.open-meteo.com', 'api.weather.gov', 'site.api.espn.com'})
+        for bad in ['[]', '{"plex": "http://x"}', '{"unknown": {}}', '{"plex": {"url": "file:///etc/passwd"}}', '{broken']:
+            (self.root / '.local/integrations.json').write_text(bad)
+            with self.assertRaises(ValueError):
+                load_integrations(self.root)
+
     def test_widget_identity_overlay_and_private_files(self):
         original = (self.root / 'app/config.xml').read_bytes()
         identity = {'package_id': 'AbCdEf1234', 'app_id': 'AbCdEf1234.MyHome'}
@@ -272,7 +293,7 @@ with zipfile.ZipFile(target, 'a') as archive:
             self.assertEqual(manifest_identity(archive.read('config.xml')), identity)
 
     def test_public_check_reads_index_and_history(self):
-        for name in ['scripts/check-public.py', 'scripts/font_assets.py', 'scripts/local_config.py', 'scripts/private_files.py',
+        for name in ['scripts/check-public.py', 'scripts/font_assets.py', 'scripts/integrations.py', 'scripts/local_config.py', 'scripts/private_files.py',
                      'app/assets/fonts/SOURCES.json', 'app/assets/manrope.woff2', 'app/assets/manrope-OFL.txt',
                      'app/assets/fonts/geist/OFL.txt', 'app/assets/fonts/newsreader/OFL.txt']:
             target = self.root / name

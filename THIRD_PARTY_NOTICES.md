@@ -28,6 +28,10 @@ The fifteen photo pages were individually checked on 20 October 2026. Each displ
 
 Photographers retain their rights. Wallpapers, thumbnails, panel backgrounds and material fields derive from the credited photographs and retain their terms. The Unsplash licence permits copying, modification and distribution subject to its restrictions, including on selling unmodified images and building a competing image service.
 
+## Online data sources (personal builds only)
+
+Public builds make no service requests. A personal build with `.local/integrations.json` contacts the services its owner configures: the [National Weather Service API](https://www.weather.gov/documentation/services-web-api) (public domain), [Open-Meteo](https://open-meteo.com/) (data under CC BY 4.0, credited on the weather rail; its free API is for non-commercial use), ESPN's unofficial public site API (undocumented, with no stated terms of use), the RSS feeds the owner chooses, and the owner's own Plex, Home Assistant and Immich servers. Each source retains its own terms; the owner is responsible for following them.
+
 ## Development dependencies and exports
 
 Development dependencies retain the licences in their npm packages. They are not copied into the TV JavaScript runtime.

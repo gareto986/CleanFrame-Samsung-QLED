@@ -1,0 +1,47 @@
+{
+  "$comment": "Copy to .local/integrations.json (ignored) and replace the placeholders. Delete any section you do not want; a missing section hides its rail. Never commit the real file or publish a widget built from it. See docs/integrations.md.",
+  "weather": {
+    "place": "Your town",
+    "latitude": 0.0,
+    "longitude": 0.0,
+    "timezone": "America/Los_Angeles",
+    "units": "us",
+    "nwsGrid": "OFFICE/X,Y"
+  },
+  "news": {
+    "feeds": [
+      { "url": "https://news.google.com/rss/search?q=YOUR+TOWN+when:2d&hl=en-US&gl=US&ceid=US:en", "kind": "local", "max": 8 },
+      { "url": "https://feeds.npr.org/1001/rss.xml", "label": "NPR", "max": 8 }
+    ]
+  },
+  "sports": {
+    "teams": [
+      { "name": "Team name", "sport": "basketball", "league": "nba", "id": "abbr" }
+    ]
+  },
+  "plex": {
+    "url": "http://PLEX-SERVER-ADDRESS:32400",
+    "token": "",
+    "appId": "3201512006963"
+  },
+  "homeAssistant": {
+    "url": "https://HOME-ASSISTANT-ADDRESS:8123",
+    "token": "LONG-LIVED-ACCESS-TOKEN",
+    "nightHours": [22, 6],
+    "quick": [
+      { "name": "Living Room Lights", "icon": "bulb", "run": "light.living_room", "lit": { "any": ["light.living_room"] } },
+      { "name": "Movie Night", "icon": "theatre", "run": "script.movie_night",
+        "night": { "name": "Night Routine", "icon": "moon", "run": "script.night_routine" } }
+    ],
+    "routines": [
+      { "id": "script.movie_night", "name": "Movie Night" }
+    ],
+    "rooms": [
+      { "name": "Living Room", "items": [["light.living_room", "Lamp"], ["fan.living_room", "Fan"]] }
+    ]
+  },
+  "photos": {
+    "immich": { "url": "http://IMMICH-ADDRESS:2283", "apiKey": "IMMICH-API-KEY", "albumId": "ALBUM-ID" },
+    "everyMinutes": 2
+  }
+}

@@ -4,29 +4,37 @@
 
   /* ---------- Bundled data ---------- */
   var ASSETS = 'assets/', ICONS = ASSETS + 'icons/', WP = ASSETS + 'wallpapers/';
-  var CAP = 9, SCRIM_Y = 560;
-  var DOCK_MODES = { both: { tw: 288, th: 200, pitch: 296 }, text: { tw: 288, th: 104, pitch: 296 }, icons: { tw: 176, th: 144, pitch: 184 } };
+  var CAP = 9;
   var GRID_ROW = 240, GRID_COL = 344, COLS = 5;
   var ED_ROW = 80, ED_SEP = 56, ED_VIEW = 752;
-  var PH_TOP = 220, PH_PITCH = 128, PH_FULL = 5, PH_HEIGHT = 944, PH_COMPACT_TOP = 144, PH_COMPACT_PITCH = 88, PH_COMPACT_VISIBLE = 9;
+  /* Home rails: a calm photo header, then one horizontal rail per section. */
+  var RAIL_W = 1696, RAIL_GAP = 16, RAIL_SPACE = 52, RAIL_LABEL = 52, RAIL_FIRST = 588, RAIL_ANCHOR = 300, RAIL_FLOOR = 940;
+  var HA_COLS = 4, HA_TILE_H = 136, HA_PITCH_X = 416, HA_ROW = 152, HA_HEAD = 72, HA_VIEW = 744;
   var WALL_VISIBLE = 6, WALL_ROW = 92, WALL_DELAY = 200;
   var KEYS = { 37: 'left', 38: 'up', 39: 'right', 40: 'down', 13: 'ok', 27: 'back', 8: 'back', 10009: 'back', 461: 'back' };
   var FULL = 'Home holds nine apps. Remove one first.', LAST = 'Home needs one app';
 
+  /* Known brands. The US set is the default Home; the others stay recognised so an existing
+     saved Home keeps its apps. Numeric IDs suit older TVs; discovery replaces any ID with the
+     one the TV reports. */
   var PRIMARY_APPS = [
+    { id: 'netflix', name: 'Netflix', mark: true, appId: '3201907018807' },
+    { id: 'youtube', name: 'YouTube', mark: true, appId: '111299001912' },
+    { id: 'disneyplus', name: 'Disney+', mark: true, appId: '3201901017640' },
+    { id: 'primevideo', name: 'Prime Video', mark: true, appId: '3201910019365' },
+    { id: 'hbomax', name: 'HBO Max', mark: true, appId: '3201601007230' },
+    { id: 'hulu', name: 'Hulu', mark: false, appId: '3201601007625' },
+    { id: 'appletv', name: 'Apple TV', mark: true, appId: '3201807016597' },
+    { id: 'plex', name: 'Plex', mark: false, appId: '3201512006963' },
+    { id: 'spotify', name: 'Spotify', mark: true, appId: '3201606009684' },
     { id: 'stremio', name: 'Stremio', mark: true, appId: 'IkWsFHtOY9.Stremio' },
-    { id: 'netflix', name: 'Netflix', mark: true, appId: 'org.tizen.netflix-app' },
-    { id: 'disneyplus', name: 'Disney+', mark: true, appId: 'MCmYXNxgcu.DisneyPlus' },
-    { id: 'youtube', name: 'YouTube', mark: true, appId: '9Ur5IzDKqV.TizenYouTube' },
-    { id: 'appletv', name: 'Apple TV', mark: true, appId: 'com.samsung.tv.aria-video' },
-    { id: 'primevideo', name: 'Prime Video', mark: true, appId: 'org.tizen.primevideo' },
     { id: 'abciview', name: 'ABC iview', mark: true, appId: 'mWK87Xghap.ABCiview' },
     { id: 'sbs', name: 'SBS On Demand', mark: true, appId: 'OyE7OuxlUi.SBSOnDemand' },
     { id: 'applemusic', name: 'Apple Music', mark: true, appId: 'org.tizen.apple.apple-music' }
   ];
+  var DEFAULT_HOME = ['netflix', 'youtube', 'disneyplus', 'primevideo', 'hbomax', 'hulu', 'appletv', 'plex', 'spotify'];
   var PRIMARY = PRIMARY_APPS.map(function (a) { return a.id; }), APPS = PRIMARY_APPS.slice(), ALPHA = [];
   var WALLS = window.CleanFrameWallpapers || [{ id: 'misty', name: 'Misty coast', tone: 'light', ut: { tr: 'mist', br: 'mist' }, frostVeil: .20 }];
-  var ADAPTIVE_INK = window.CleanFrameAdaptiveInk || {};
   WALLS.forEach(function (w) { w.ut = w.ut || { tr: 'light', br: 'light' }; w.frostVeil = w.frostVeil || .12; });
   var MODES = [
     { id: 'fixed', name: 'Fixed', min: 0 }, { id: 'open', name: 'Each time Home opens', min: 0 },
@@ -43,11 +51,12 @@
     geist: { name: 'Geist', family: 'Study Geist', display: 300, ui: 400, clock: 300 },
     newsreader: { name: 'Newsreader', family: 'Study Newsreader', display: 400, ui: 400, clock: 400 }
   };
-  var PRIVATE_FONTS = window.CleanFramePrivateFontIDs || [], fontMetrics = {}, unavailableFonts = {}, widthCache = {}, fontRevision = 0, fontsReady = false;
-  var LOOK_VALUES = { bg: ['dark', 'light', 'photo'], layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], font: Object.keys(FONTS).filter(function (id) { return id === 'manrope' || PRIVATE_FONTS.indexOf(id) >= 0; }), controls: ['icons', 'both', 'text'], focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] };
+  var PRIVATE_FONTS = window.CleanFramePrivateFontIDs || [], fontMetrics = {}, unavailableFonts = {}, fontRevision = 0, fontsReady = false;
+  var LOOK_VALUES = { bg: ['dark', 'light', 'photo', 'photos'], layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], font: Object.keys(FONTS).filter(function (id) { return id === 'manrope' || PRIVATE_FONTS.indexOf(id) >= 0; }), controls: ['icons', 'both', 'text'], focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] };
   var LOOK_NAMES = { bg: 'Background', layout: 'Layout', apps: 'Apps', font: 'Font', controls: 'Home controls', focus: 'Focus', material: 'Material' };
-  var VALUE_NAMES = { dark: 'Dark', light: 'Light', photo: 'Photo', list: 'List', dock: 'Dock', type: 'Type', glass: 'Glass', soft: 'Soft', frost: 'Frost', tint: 'Clear tint', icons: 'Icons', both: 'Icons and text', text: 'Text' };
-  var UTIL = { art: ['Art Mode', 'art'], apps: ['All apps', 'apps'], arrange: ['Arrange', 'arrange'], settings: ['Settings', 'settings'] };
+  var VALUE_NAMES = { dark: 'Dark', light: 'Light', photo: 'Wallpaper', photos: 'My photos', list: 'List', dock: 'Dock', type: 'Type', glass: 'Glass', soft: 'Soft', frost: 'Frost', tint: 'Clear tint', icons: 'Icons', both: 'Icons and text', text: 'Text' };
+  var UTIL = { inputs: ['Inputs', 'tv'], apps: ['All apps', 'apps'], settings: ['Settings', 'settings'] };
+  var FEEDS = window.CleanFrameFeeds;
   var MSG = {
     leave: { title: 'Leave Home?', line: 'Open Samsung Home?', note: '', actions: [['stay', 'Stay'], ['samsung', 'Samsung Home']] }
   };
@@ -72,28 +81,25 @@
   /* ---------- State ---------- */
   var REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var S = {
-    variant: 'B', geom: 'broad', c: null, stack: null,
+    c: null, stack: null,
     sel: null, selIdx: 0, lastUtil: 0, appsFocus: null, settingsFocus: 'background', appearanceFocus: 'bg', detailFocus: {},
     undo: [], removedAt: {}, note: null, err: null,
     writes: 0, failed: 0, log: [], logN: 0, lastLaunch: null, press: null,
     wallShown: null, wallPending: null, wallError: null,
     shown: null, pending: null, lookError: null, bundleKey: null, previewBundle: null, reflow: false, fontSwitch: false
   };
-  var scroll = { first: 0, off: 0, photo: 0, photoArrange: 0 };
   function pick(v, list, fallback) {
     v = String(v || '').toLowerCase();
     for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === v) return list[i];
     return fallback;
   }
   function lookOf(c) { return { bg: c.bg, wall: c.wall, layout: c.layout, apps: c.apps, font: c.font, controls: c.controls, focus: c.focus, material: c.material }; }
-  function materialApplies(c) { c = c || S.c; return c.bg === 'photo' && (c.layout === 'dock' || c.focus === 'glass'); }
+  function photoBg(c) { c = c || S.c; return c.bg === 'photo' || c.bg === 'photos'; }
 
   /* ---------- Helpers ---------- */
   function app(id) { for (var i = 0; i < APPS.length; i++) if (APPS[i].id === id) return APPS[i]; return null; }
   function wall(id) { for (var i = 0; i < WALLS.length; i++) if (WALLS[i].id === id) return WALLS[i]; return null; }
   function wallIndex(id) { for (var i = 0; i < WALLS.length; i++) if (WALLS[i].id === id) return i; return 0; }
-  function frostClass(w) { var i = [.12, .20, .30, .36, .44].indexOf(w.frostVeil); return i > 0 ? ' fv-' + (i + 1) : ''; }
-  function wallClasses(w) { return frostClass(w) + (w.listColumn ? ' lc-' + w.listColumn : '') + (w.dockQuiet ? ' db-quiet' : '') + (w.clockMist ? ' tl-mist' : ''); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function without(list, id) { return list.filter(function (x) { return x !== id; }); }
   function same(a, b) { if (a.length !== b.length) return false; for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; }
@@ -210,8 +216,8 @@
       ended = true; clearTimeout(timer);
       if (ok) {
         fontMetrics[id] = measureFace(id, faces); delete unavailableFonts[id];
-        // Measurements and cached markup belong to a particular loaded font.
-        widthCache = {}; fontRevision++;
+        // Cached markup belongs to a particular loaded font.
+        fontRevision++;
         if (id === 'manrope') fontsReady = true;
       } else if (reason !== 'timeout') unavailableFonts[id] = true;
       fontChoices(); done(ok, reason);
@@ -248,39 +254,6 @@
     if (id === 'manrope' || !base || !metrics) return 0;
     a = base.roles[role][size]; b = metrics.roles[role][size];
     return (a.ascent - a.descent - a.cap - b.ascent + b.descent + b.cap) / 2;
-  }
-  function textWidth(text, size, weight, spacing, role) {
-    var id = homeFont(), r = fontRole(id, role || 'ui', size), key, width;
-    if (id !== 'manrope') { weight = r.weight; spacing = role === 'display' ? -size * .01 : 0; }
-    key = [id, role || 'ui', text, size, weight, spacing].join('|');
-    if (widthCache.hasOwnProperty(key)) return widthCache[key];
-    if (r.opsz) {
-      measureSpan.style.font = weight + ' ' + size + 'px "' + r.family + '"';
-      measureSpan.style.fontVariationSettings = '"opsz" ' + r.opsz;
-      measureSpan.style.fontVariantNumeric = 'normal'; measureSpan.style.letterSpacing = '0'; measureSpan.textContent = text;
-      width = measureSpan.getBoundingClientRect().width;
-    } else {
-      measureContext.font = (weight || 500) + ' ' + size + 'px "' + r.family + '", Arial, sans-serif';
-      width = measureContext.measureText(text).width;
-    }
-    width += Math.max(0, text.length - 1) * (spacing || 0);
-    // Do not retain fallback measurements made before the baseline font is ready.
-    if (fontMetrics[id] && !fontMetrics[id].fallback) widthCache[key] = width;
-    return width;
-  }
-  function dockLabelSize(id) { return S.c.apps === 'text' ? (textWidth(app(id).name, 40, 600, -.8, 'primary') > 264 ? 34 : 40) : textWidth(app(id).name, 36, 500, -.8, 'primary') > 280 ? 32 : 36; }
-  function reducedDockLabel(id) { return S.c.apps !== 'icons' && dockLabelSize(id) === (S.c.apps === 'text' ? 34 : 32); }
-  function actionWidth(text) { return clamp(Math.ceil(textWidth(text, 30, 500, -.3) + 40), 288, 400); }
-  function photoLabel(id, compact) {
-    var text = app(id).name, size = compact ? 56 : 88, limit = compact ? 640 : 992, width = textWidth(text, size, 600, -1.8, 'display');
-    if (!compact && width > limit) { size = 76; width = textWidth(text, size, 600, -1.8, 'display'); }
-    // Newsreader's ninth compact Type row otherwise enters the lower fade by .63px.
-    return { size: size, top: (compact ? 10.66 : size === 76 ? 10.36 : 9.68) + fontShift('display', size) - (compact && homeFont() === 'newsreader' ? .7 : 0), width: Math.min(limit, width), ellipsis: width > limit };
-  }
-  function listPlateWidth(id, compact) {
-    if (S.c.apps === 'icons') return compact ? 120 : 144;
-    var text = S.c.apps === 'text';
-    return clamp(Math.ceil(photoLabel(id, compact).width + (text ? 84 : compact ? 156 : 184)), text ? 280 : 360, text ? compact ? 724 : 1076 : compact ? 796 : 1176);
   }
 
   /* Keyed children: elements persist by key so transforms animate instead of re-creating.
@@ -326,26 +299,33 @@
     }
     return null;
   }
+  /* A saved store ID for a now-known brand becomes that brand, so it is not listed twice. */
+  function canonical(id) {
+    var brand = FrameDevice.brandOf ? FrameDevice.brandOf(id, '') : '';
+    return brand && PRIMARY.indexOf(brand) >= 0 ? brand : id;
+  }
   function clean(saved) {
     var s = saved && typeof saved === 'object' ? saved : {}, modern = s.look && typeof s.look === 'object' ? s.look : s;
     var legacyList = s.theme === 'list', h = [], recent = [], records = Array.isArray(s.appRecords) ? s.appRecords : [];
     records.slice(0, 256).forEach(function (a) {
-      if (!a || !safeId(a.id) || !safeId(a.appId) || typeof a.name !== 'string' || !a.name.trim() || app(a.id)) return;
+      if (!a || !safeId(a.id) || !safeId(a.appId) || typeof a.name !== 'string' || !a.name.trim() || app(a.id) || canonical(a.id) !== a.id) return;
       APPS.push({ id: a.id, appId: a.appId, name: a.name.slice(0, 160), brand: ['hbomax', 'spotify', 'tubi'].indexOf(a.brand) >= 0 ? a.brand : '', mark: ['hbomax', 'spotify', 'tubi'].indexOf(a.brand) >= 0, icon: safeIcon(a.icon) });
     });
     (Array.isArray(s.home) ? s.home : Array.isArray(s.dock) ? s.dock : []).forEach(function (id) {
-      if (!safeId(id) || h.indexOf(id) >= 0 || h.length >= CAP) return;
+      if (!safeId(id)) return;
+      id = canonical(id);
+      if (h.indexOf(id) >= 0 || h.length >= CAP) return;
       if (!app(id) && id.indexOf('.') > 0) APPS.push({ id: id, appId: id, name: id.split('.').pop(), mark: false });
       if (app(id)) h.push(id);
     });
-    if (!h.length) h = PRIMARY.slice();
-    (Array.isArray(s.recent) ? s.recent : []).forEach(function (id) { if (safeId(id) && app(id) && h.indexOf(id) < 0 && recent.indexOf(id) < 0 && recent.length < 5) recent.push(id); });
+    if (!h.length) h = DEFAULT_HOME.slice();
+    (Array.isArray(s.recent) ? s.recent : []).forEach(function (id) { if (safeId(id)) id = canonical(id); if (safeId(id) && app(id) && h.indexOf(id) < 0 && recent.indexOf(id) < 0 && recent.length < 5) recent.push(id); });
     return {
       bg: pick(modern.bg, LOOK_VALUES.bg, legacyList ? 'dark' : 'photo'), layout: pick(modern.layout, LOOK_VALUES.layout, legacyList ? 'list' : 'dock'),
       apps: pick(modern.apps, LOOK_VALUES.apps, legacyList ? 'text' : 'both'), controls: pick(modern.controls, LOOK_VALUES.controls, 'both'),
       focus: pick(modern.focus, LOOK_VALUES.focus, legacyList ? 'type' : 'glass'), material: pick(modern.material, LOOK_VALUES.material, 'soft'),
       font: pick(modern.font, LOOK_VALUES.font, 'manrope'), wall: wall(modern.wall || s.wallpaper) ? modern.wall || s.wallpaper : WALLS[0].id,
-      home: h, recent: recent, lastApp: h.indexOf(s.lastApp) >= 0 ? s.lastApp : h[0],
+      home: h, recent: recent, lastApp: h.indexOf(canonical(String(s.lastApp))) >= 0 ? canonical(String(s.lastApp)) : h[0],
       mode: pick(s.mode, MODES.map(function (m) { return m.id; }), 'fixed')
     };
   }
@@ -363,7 +343,7 @@
   }
   function initialise() {
     var saved = load(), initial; S.c = clean(saved); initial = next(S.c.home.slice(), S.c.recent.slice());
-    S.stack = [{ id: 'home', f: { zone: 'apps', u: 0 } }];
+    S.stack = [{ id: 'home', f: { zone: 'rails', u: 0, r: 0, at: {} } }];
     S.sel = S.c.lastApp; S.selIdx = S.c.home.indexOf(S.sel);
     if (saved && initial.mode === 'open') initial.wall = WALLS[(wallIndex(initial.wall) + 1) % WALLS.length].id;
     // Keep the old schema keys alongside the builder values for in-place updates.
@@ -491,14 +471,9 @@
   }
 
   /* ---------- Navigation targets ---------- */
-  function utils() { return ['art', 'apps', 'settings']; }
-  /* prev/next run along the apps; out goes to the controls, inn comes back (or to a per-app action). */
-  function axes() {
-    var v = S.c.layout === 'list';
-    return { prev: v ? 'up' : 'left', next: v ? 'down' : 'right', out: v ? 'right' : 'up', inn: v ? 'left' : 'down' };
-  }
+  function utils() { return ['inputs', 'apps', 'settings']; }
   function utilAction(u) {
-    if (u === 'art') perform('Art Mode', FrameDevice.art);
+    if (u === 'inputs') openInputs('home');
     else if (u === 'apps') openApps();
     else openSettings();
   }
@@ -530,54 +505,149 @@
 
   var V = {};
 
-  /* ---------- Home (browse) ---------- */
+  /* ---------- Home rails ---------- */
+  /* Each rail is a section of Home: the saved apps, then each configured integration.
+     Focus moves along a rail with Left/Right and between rails with Up/Down. */
+  var railNote = { text: '', rail: '', timer: 0 };
+  function feed(name) { return FEEDS ? FEEDS.state(name) : { status: 'off' }; }
+  function statusTile(name, st, label) {
+    return { key: name + '.status', kind: 'status', w: 560, action: name + '.retry',
+      text: st.status === 'error' ? st.error : 'Loading ' + label + '…', error: st.status === 'error' };
+  }
+  function shortHour(iso) { var h = parseInt(iso.slice(11, 13), 10); return (h % 12 || 12) + (h < 12 ? ' am' : ' pm'); }
+  function weekday(date) { return new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }); }
+  function weatherItems(w) {
+    var out = [{ key: 'wx.now', kind: 'now', w: 400, action: 'weather.now', data: w }], j;
+    for (j = 1; j < 9; j++) if (w.hours[j * 2]) out.push({ key: 'wx.h' + j, kind: 'hour', w: 120, action: 'weather.hour.' + j, data: w.hours[j * 2] });
+    w.days.slice(1, 6).forEach(function (d, i) { out.push({ key: 'wx.d' + i, kind: 'day', w: 120, action: 'weather.day.' + i, data: d }); });
+    return out;
+  }
+  function railList() {
+    var rails = [], h = S.c.home, st;
+    rails.push({ id: 'apps', label: '', h: 168, items: h.length ? h.map(function (id) { return { key: 'app.' + id, kind: 'app', id: id, w: 176, action: 'home.app.' + id }; })
+      : [{ key: 'add', kind: 'add', w: 360, action: 'home.add' }] });
+    if (!FEEDS) return rails;
+    st = feed('plex');
+    if (st.status !== 'off') rails.push({ id: 'plex', label: 'Plex', h: 336, items: st.status === 'ready'
+      ? st.data.map(function (it, i) { return { key: 'plex.' + i + '.' + it.title, kind: 'poster', w: 160, action: 'plex.open.' + i, data: it }; })
+        .concat([{ key: 'plex.app', kind: 'more', w: 160, action: 'plex.app' }])
+      : [statusTile('plex', st, 'Plex')] });
+    st = feed('home');
+    if (st.status !== 'off') rails.push({ id: 'home', label: 'Home', h: 128, items: FEEDS.home.quick().map(function (q) {
+      return { key: 'ha.' + q.key, kind: 'ha', w: 256, action: 'ha.run.' + q.key, data: q, stale: st.status === 'error' };
+    }).concat([{ key: 'ha.rooms', kind: 'rooms', w: 256, action: 'ha.rooms' }]), note: st.status === 'error' ? st.error : '' });
+    st = feed('sports');
+    if (st.status !== 'off') rails.push({ id: 'sports', label: 'Sports', h: 136, items: st.status === 'ready'
+      ? st.data.map(function (team, i) { return { key: 'team.' + i, kind: 'team', w: 400, action: 'sports.refresh.' + i, data: team }; })
+      : [statusTile('sports', st, 'scores')] });
+    st = feed('weather');
+    if (st.status !== 'off') rails.push({ id: 'weather', label: 'Weather' + (st.data && st.data.place ? ' · ' + st.data.place : ''), h: 176,
+      items: st.status === 'ready' ? weatherItems(st.data) : [statusTile('weather', st, 'the forecast')], note: st.status === 'ready' ? 'Weather data: ' + st.data.source : '' });
+    return rails;
+  }
+  function railIndex(f, r) {
+    if (r.id === 'apps') return S.c.home.length ? Math.max(0, ensureSel()) : 0;
+    return clamp(f.at[r.id] || 0, 0, r.items.length - 1);
+  }
+  function setRailIndex(f, r, i) {
+    if (r.id === 'apps') { if (S.c.home.length) setSel(S.c.home[i]); }
+    else f.at[r.id] = i;
+  }
+  function say(rail, text) {
+    clearTimeout(railNote.timer);
+    railNote.text = text; railNote.rail = rail;
+    railNote.timer = setTimeout(function () { railNote.text = ''; render(); }, 5000);
+  }
+  function plexAppId() { var a = app('plex'); return catalog.loaded && a && ALPHA.indexOf('plex') >= 0 ? a.appId : FEEDS.plex.appId(); }
+  function railOk(t, r, it) {
+    if (!it) return;
+    if (it.kind === 'app') launch(it.id);
+    else if (it.kind === 'add') addAppsRoute();
+    else if (it.kind === 'poster' || it.kind === 'more') perform('Plex', function (done) { FrameDevice.launchApp(plexAppId(), done); });
+    else if (it.kind === 'ha') {
+      say('home', it.data.routine ? 'Running ' + it.data.name + '…' : '');
+      FEEDS.home.run(it.data.id, function (err) { say('home', err ? err.message : it.data.routine ? it.data.name + ' started.' : ''); render(); });
+    } else if (it.kind === 'rooms') openHa();
+    else if (it.kind === 'status' || it.kind === 'team') FEEDS.retry(r.id);
+  }
   V.home = {
+    norm: function (t) { var R = railList(); t.f.r = clamp(t.f.r, 0, R.length - 1); },
     key: function (t, k) {
-      var f = t.f, h = S.c.home, U = utils(), x = axes(), i = ensureSel();
-      if (S.c.layout === 'list') { listHomeKey(t, k, i, U); return; }
+      var f = t.f, R = railList(), U = utils(), r, i;
+      f.r = clamp(f.r, 0, R.length - 1);
       if (f.zone === 'util') {
         f.u = clamp(f.u, 0, U.length - 1);
-        if (k === x.prev && f.u > 0) f.u--;
-        else if (k === x.next && f.u < U.length - 1) f.u++;
-        else if (k === x.inn || k === 'back') f.zone = 'apps';
+        if (k === 'left' && f.u > 0) f.u--;
+        else if (k === 'right' && f.u < U.length - 1) f.u++;
+        else if (k === 'down' || k === 'back') f.zone = 'rails';
         else if (k === 'ok') { S.lastUtil = f.u; utilAction(U[f.u]); return; }
         S.lastUtil = f.u;
         return;
       }
-      f.zone = 'apps';
-      if (k === x.out) { f.zone = 'util'; f.u = clamp(S.lastUtil, 0, U.length - 1); }
-      else if (k === 'back') openMessage('leave');
-      else if (!h.length) { if (k === 'ok') addAppsRoute(); }
-      else if (k === x.prev && i > 0) setSel(h[i - 1]);
-      else if (k === x.next && i < h.length - 1) setSel(h[i + 1]);
-      else if (k === 'ok') launch(S.sel);
+      f.zone = 'rails'; r = R[f.r]; i = railIndex(f, r);
+      if (k === 'left' && i > 0) setRailIndex(f, r, i - 1);
+      else if (k === 'right' && i < r.items.length - 1) setRailIndex(f, r, i + 1);
+      else if (k === 'up') { if (f.r > 0) f.r--; else { f.zone = 'util'; f.u = clamp(S.lastUtil, 0, U.length - 1); } }
+      else if (k === 'down' && f.r < R.length - 1) f.r++;
+      else if (k === 'back') { if (f.r > 0) f.r = 0; else openMessage('leave'); }
+      else if (k === 'ok') railOk(t, r, r.items[i]);
     },
-    point: function (t, z, i) {
+    point: function (t, z, i, id) {
+      var R = railList(), r;
       if (z === 'util') { t.f.zone = 'util'; t.f.u = i; S.lastUtil = i; }
-      else if (z === 'app') { t.f.zone = 'apps'; setSel(S.c.home[i]); }
-      else if (z === 'empty') t.f.zone = 'apps';
-      else return;
+      else if (z === 'rail') {
+        R.some(function (rail, ri) { if (rail.id === id) { r = rail; t.f.r = ri; return true; } return false; });
+        if (!r || !r.items[i]) return;
+        t.f.zone = 'rails'; setRailIndex(t.f, r, i);
+      } else return;
       this.key(t, 'ok');
     }
   };
-  function listHomeKey(t, k, i, U) {
-    var f = t.f, h = S.c.home;
-    if (f.zone === 'util') {
-      f.u = clamp(f.u, 0, U.length - 1);
-      if (k === 'up' && f.u > 0) f.u--;
-      else if (k === 'down' && f.u < U.length - 1) f.u++;
-      else if (k === 'left' || k === 'back') f.zone = 'apps';
-      else if (k === 'ok') { S.lastUtil = f.u; utilAction(U[f.u]); return; }
-      S.lastUtil = f.u;
-      return;
-    }
-    f.zone = 'apps';
-    if (k === 'up' && i > 0) setSel(h[i - 1]);
-    else if (k === 'right') { f.zone = 'util'; f.u = clamp(S.lastUtil, 0, U.length - 1); }
-    else if (k === 'down' && i < h.length - 1) setSel(h[i + 1]);
-    else if (k === 'back') openMessage('leave');
-    else if (k === 'ok') { if (h.length) launch(S.sel); else addAppsRoute(); }
+
+  /* ---------- Home Assistant rooms ---------- */
+  function haLayout() {
+    var tiles = [], heads = [], y = 0, row = 0;
+    (FEEDS ? FEEDS.home.sections() : []).forEach(function (sec) {
+      heads.push({ key: 'h.' + sec.name, name: sec.name, y: y }); y += HA_HEAD;
+      sec.items.forEach(function (it, j) {
+        var c = j % HA_COLS;
+        if (j && !c) { y += HA_ROW; row++; }
+        tiles.push({ key: 't.' + tiles.length + '.' + it.id, item: it, x: c * HA_PITCH_X, y: y, row: row, col: c });
+      });
+      y += HA_ROW + 24; row++;
+    });
+    return { tiles: tiles, heads: heads, height: y };
   }
+  function openHa() { push({ id: 'ha', top: 0, f: { i: 0 } }); FEEDS.home.fast(true); }
+  function closeHa() { FEEDS.home.fast(false); pop(); }
+  V.ha = {
+    sheet: true,
+    norm: function (t) { t.f.i = clamp(t.f.i, 0, Math.max(0, haLayout().tiles.length - 1)); },
+    key: function (t, k) {
+      var L = haLayout().tiles, cur = L[t.f.i], d, best = -1, bestCost = Infinity;
+      if (k === 'back') { closeHa(); return; }
+      if (!cur) return;
+      if (k === 'left' && t.f.i > 0 && L[t.f.i - 1].row === cur.row) t.f.i--;
+      else if (k === 'right' && t.f.i < L.length - 1 && L[t.f.i + 1].row === cur.row) t.f.i++;
+      else if (k === 'up' || k === 'down') {
+        d = k === 'up' ? -1 : 1;
+        L.forEach(function (tile, j) {
+          var dr = (tile.row - cur.row) * d, cost;
+          if (dr <= 0) return;
+          cost = dr * 100 + Math.abs(tile.col - cur.col);
+          if (cost < bestCost) { bestCost = cost; best = j; }
+        });
+        if (best >= 0) t.f.i = best;
+      } else if (k === 'ok') {
+        S.note = cur.item.routine ? 'Running ' + cur.item.name + '…' : '';
+        FEEDS.home.run(cur.item.id, function (err) {
+          S.note = err ? err.message : cur.item.routine ? cur.item.name + ' started.' : '';
+          render();
+        });
+      }
+    },
+    point: function (t, z, i) { if (z === 'ha') { t.f.i = i; this.key(t, 'ok'); } }
+  };
 
   /* ---------- Wallpaper child: focus previews, activation applies ---------- */
   function cancelWallpaperTimer(t) {
@@ -817,9 +887,7 @@
   function settingsRows() {
     var n = S.c.home.length;
     return [{ id: 'background', label: 'Background', value: S.c.bg === 'photo' ? wall(S.c.wall).name : VALUE_NAMES[S.c.bg] },
-      { id: 'layout', label: 'Layout', value: VALUE_NAMES[S.c.layout] },
       { id: 'typography', label: 'Typography', value: FONTS[S.c.font].name },
-      { id: 'focus', label: 'Focus', value: VALUE_NAMES[S.c.focus] + (materialApplies() ? ', ' + VALUE_NAMES[S.c.material] : '') },
       { id: 'editor', label: 'Apps on Home', value: n + (n === 1 ? ' app' : ' apps') },
       { id: 'samsung', label: 'Samsung', value: 'Home and TV settings' }];
   }
@@ -841,44 +909,36 @@
     if (id === 'editor') openEditor('settings');
     else openAppearance(id);
   }
-  var DETAIL_NAMES = { background: 'Background', layout: 'Layout', typography: 'Typography', focus: 'Focus', rotation: 'Rotation', samsung: 'Samsung', inputs: 'Inputs' };
+  var DETAIL_NAMES = { background: 'Background', typography: 'Typography', rotation: 'Rotation', samsung: 'Samsung', inputs: 'Inputs' };
   function choice(axis, value, disabled) {
     return { action: axis === 'mode' ? 'rotation.' + value : 'choice.' + axis + '.' + value, axis: axis, value: value, disabled: !!disabled,
       label: axis === 'font' ? FONTS[value].name : axis === 'mode' ? MODES.filter(function (m) { return m.id === value; })[0].name : value === 'both' ? 'Both' : VALUE_NAMES[value] };
   }
   function detailSections(t) {
-    var flat = S.c.bg !== 'photo', inactive = !materialApplies();
+    var flat = S.c.bg !== 'photo', mine = FEEDS && FEEDS.configured('photos');
     function options(axis, values, disabled) { return values.map(function (value) { return choice(axis, value, disabled); }); }
     if (t.group === 'inputs') return [{ id: 'inputs', title: '', items: t.inputs.length ? t.inputs.map(function (input) {
       return { action: 'input.' + input.number, label: input.name, description: input.active ? 'Active' : input.connected ? 'Connected' : 'Disconnected — may be asleep' };
     }) : [{ action: 'inputs.retry', label: t.loading ? 'Loading inputs…' : 'Try again', disabled: t.loading }],
       reason: t.inputError || (!t.loading && !t.inputs.length ? 'No HDMI inputs were reported by this TV.' : '') }];
     if (t.group === 'background') return [
-      { id: 'bg', title: 'Background type', items: options('bg', ['photo', 'light', 'dark']) },
+      { id: 'bg', title: 'Background type', items: options('bg', mine || S.c.bg === 'photos' ? ['photo', 'photos', 'light', 'dark'] : ['photo', 'light', 'dark']),
+        reason: S.c.bg === 'photos' ? mine ? 'Shows a photo from your album, changing every ' + FEEDS.photos.every() + ' minutes.' : 'Photos are not set up in this build; the wallpaper is shown.' : '' },
       { id: 'wall', title: 'Wallpaper', items: [{ action: 'background.wallpaper', label: wall(S.c.wall).name, thumbnail: true, disabled: flat }] },
-      { id: 'rotation', title: 'Rotation', items: [{ action: 'background.rotation', label: mode().name, disabled: flat }], reason: flat ? 'Choose Photo to use wallpaper and rotation.' : '' }
-    ];
-    if (t.group === 'layout') return [
-      { id: 'layout', title: 'Layout', horizontal: true, items: options('layout', ['list', 'dock']) },
-      { id: 'apps', title: 'App display', horizontal: true, items: options('apps', ['text', 'icons', 'both']) },
-      { id: 'controls', title: 'Home controls', horizontal: true, items: options('controls', ['text', 'icons', 'both']) }
+      { id: 'rotation', title: 'Rotation', items: [{ action: 'background.rotation', label: mode().name, disabled: flat }], reason: flat ? 'Choose Wallpaper to pick a photo and rotation.' : '' }
     ];
     if (t.group === 'typography') return [{ id: 'font', title: '', items: options('font', LOOK_VALUES.font) }];
-    if (t.group === 'focus') return [
-      { id: 'focus', title: 'Focus style', horizontal: true, items: options('focus', ['type', 'glass']) },
-      { id: 'material', title: 'Material', horizontal: true, items: options('material', ['soft', 'frost', 'tint'], inactive),
-        reason: inactive ? flat ? 'Materials are available with a Photo background.' : 'Choose Glass focus or the Dock layout to use materials.' : '' }
-    ];
     if (t.group === 'rotation') return [{ id: 'mode', title: '', items: options('mode', MODES.map(function (m) { return m.id; }), flat),
-      reason: flat ? 'Choose Photo in Background to use rotation.' : 'Timed changes pause while Settings or another panel is open.' }];
+      reason: flat ? 'Choose Wallpaper in Background to use rotation.' : 'Timed changes pause while Settings or another panel is open.' }];
     return [{ id: 'samsung', title: '', items: [
       { action: 'samsung.home', label: 'Samsung Home', description: 'Open Samsung’s Home screen' },
       { action: 'samsung.settings', label: 'TV settings', description: 'Picture, sound and network settings' },
       { action: 'samsung.inputs', label: 'Inputs', description: 'Choose an HDMI input' }
     ] }];
   }
+  function backLabel(t) { return t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? t.origin === 'home' ? 'Home' : 'Samsung' : 'Settings'; }
   function detailRows(t) {
-    var rows = [[{ action: 'settings.back', label: t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? 'Samsung' : 'Settings' }]];
+    var rows = [[{ action: 'settings.back', label: backLabel(t) }]];
     detailSections(t).forEach(function (section) {
       var enabled = section.items.filter(function (item) { return !item.disabled; });
       if (section.horizontal && enabled.length) rows.push(enabled);
@@ -913,8 +973,8 @@
       t.loading = false; t.inputs = list || []; t.inputError = err ? err.message : null; after();
     });
   }
-  function openInputs() {
-    openAppearance('inputs'); var t = top(); t.inputs = []; loadInputs(t);
+  function openInputs(origin) {
+    openAppearance('inputs'); var t = top(); t.origin = origin || 'samsung'; t.inputs = []; loadInputs(t);
   }
   function detailBack() { cancelLook(); S.err = null; pop(); FrameDevice.cancelSource(); }
   function detailOk(t, item) {
@@ -931,7 +991,7 @@
     else if (item.action === 'background.rotation') openAppearance('rotation');
     else if (item.action === 'samsung.home') perform('Samsung Home', FrameDevice.home);
     else if (item.action === 'samsung.settings') perform('TV settings', FrameDevice.settings);
-    else if (item.action === 'samsung.inputs') openInputs();
+    else if (item.action === 'samsung.inputs') openInputs('samsung');
     else if (item.action === 'inputs.retry') loadInputs(t);
     else if (item.action.indexOf('input.') === 0) perform(item.label, function (done) {
       FrameDevice.setSource(Number(item.action.slice(6)), function (err) {
@@ -998,59 +1058,26 @@
 
   /* ---------- Rendering ---------- */
   var $ = function (id) { return document.getElementById(id); };
-  var stage = $('stage'), homeEl = $('home'), caption = $('caption'), utilsEl = $('utils');
-  var utilFocusLabel = $('utilFocusLabel'), utilFocusKey = '', appFocusName = $('appFocusName');
-  var dock = $('dock'), shelf = $('shelf'), track = $('track'), plate = $('plate'), matScrim = $('matScrim'), dockEmpty = $('dockEmpty');
-  var cueL = $('cueL'), cueR = $('cueR'), dockAction = $('dockAction');
+  var stage = $('stage'), homeEl = $('home'), mastheadEl = $('masthead'), utilsEl = $('utils'), alertsEl = $('alerts');
+  var railsEl = $('rails'), railsIn = $('railsIn'), tickerEl = $('ticker'), tickerTrack = $('tickerTrack');
   var focusStatus = $('focusStatus'), sceneEl = $('scene'), appearanceEl = $('appearance'), appearanceRows = $('appearanceRows'), appearanceDesc = $('appearanceDesc');
   var appearanceBack = $('appearanceBack'), appearanceTitle = $('appearanceTitle'), appearanceStatus = $('appearanceStatus');
-  var phScene = $('phScene'), phPlate = $('phPlate'), phField = $('phField'), phList = $('phList'), phRows = $('phRows'), phAction = $('phAction'), phEmpty = $('phEmpty');
-  var phPlates = [phPlate, $('phPlateAlt')], phFields = [phField, $('phFieldAlt')], photoPlateIndex = 0, photoPlateKey = null;
-  var utPlates = [$('utLens'), $('utLensAlt')], utFields = [$('utField'), $('utFieldAlt')], utPlateIndex = 0, utPlateKey = null;
-  var photoMode = null, photoTransitionToken = 0;
   var sheetEl = $('sheet'), sheetView = $('sheetView');
-  var IMG = { photo: $('photo'), mat: $('matImg'), bg: $('sheetBg'), field: $('phFieldImg'), fieldAlt: $('phFieldImgAlt'), utility: $('utFieldImg'), utilityAlt: $('utFieldImgAlt') };
-  var sheetKey = '', slotEls = {}, dockEdgeFrame = 0, dockEdgeUntil = 0, dockAnchorCenter = 960;
-  var appliedPalette = null, appliedPhoto = null, appliedFont = null, appliedFontMetrics = null;
+  var IMG = { photo: $('photo'), bg: $('sheetBg') };
+  var sheetKey = '', slotEls = {}, railScroll = {};
+  var appliedFont = null, appliedFontMetrics = null;
 
-  /* Curated locked palettes keep the existing rendering path exactly. */
-  function applyAdaptiveInk(palette) {
-    var active = S.c.bg === 'photo' && palette && !palette.locked && palette.light && palette.tl && palette.tr && palette.br;
-    if (appliedPalette === palette && appliedPhoto === (S.c.bg === 'photo')) return !!active;
-    appliedPalette = palette; appliedPhoto = S.c.bg === 'photo';
-    ['tl', 'tr', 'br'].forEach(function (zone) {
-      var r = active ? palette[zone] : null;
-      var values = r ? { ink: r.ink, 'clock-ink': r.clockInk || r.ink, 'rest-ink': r.restInk, 'peer-ink': r.peerInk, rest: r.restAlpha, peer: r.peerAlpha, under: r.halo, shadow: r.shadow } : {};
-      ['ink', 'clock-ink', 'rest-ink', 'peer-ink', 'rest', 'peer', 'under', 'shadow'].forEach(function (key) {
-        var name = '--' + zone + '-' + key, value = values[key];
-        if (value !== undefined && value !== null) stage.style.setProperty(name, String(value));
-        else stage.style.removeProperty(name);
-      });
-    });
-    if (active && palette.light) stage.style.setProperty('--home-app-ink', palette.light);
-    else stage.style.removeProperty('--home-app-ink');
-    return !!active;
-  }
-  function inkRungClasses(palette, active) {
-    if (!active) return '';
-    return ['tl', 'tr', 'br'].map(function (zone) {
-      var rung = palette[zone].rung;
-      return ['light', 'mist', 'mist-high', 'dark', 'dark-halo'].indexOf(rung) >= 0 ? ' ink-' + zone + '-' + rung : '';
-    }).join('');
-  }
   function render() {
-    var t = top(), sheet = !!V[t.id].sheet, shown = wall(S.shown ? S.shown.wall : S.c.wall), palette = ADAPTIVE_INK[shown.id];
-    var adaptive = applyAdaptiveInk(palette), tr = adaptive && palette.tr ? palette.tr.pol : shown.ut.tr, br = adaptive && palette.br ? palette.br.pol : shown.ut.br;
-    stage.className = 'stage bg-' + S.c.bg + ' l-' + S.c.layout + ' v-' + S.variant + ' m-' + (materialApplies() ? S.c.material : 'none') + ' f-' + S.c.focus + ' a-' + S.c.apps + ' u-' + S.c.controls + ' g-' + S.geom + ' tone-' + shown.tone + ' tr-' + tr + ' br-' + br + wallClasses(shown) + inkRungClasses(palette, adaptive) + ' at-' + t.id + ' font-' + homeFont() + (homeFont() !== 'manrope' ? ' font-custom' : '') + (S.fontSwitch ? ' is-font-switch' : '') + (adaptive ? ' has-adaptive-ink adaptive-tl-' + palette.tl.pol : '') + (!adaptive && shown.clockInk ? ' has-clock-ink' : '') + (!adaptive && shown.dockClockInk ? ' has-dock-clock-ink' : '') + (registeredMaterial(shown.id) ? ' registered-material' : '') + (sheet ? ' is-sheet' : '') + (S.reflow ? ' is-reflow' : '');
-    if (!adaptive && shown.clockInk) stage.style.setProperty('--clock-ink', shown.clockInk);
-    else stage.style.removeProperty('--clock-ink');
-    if (!adaptive && shown.dockClockInk) stage.style.setProperty('--dock-clock-ink', shown.dockClockInk);
-    else stage.style.removeProperty('--dock-clock-ink');
+    var t = top(), sheet = !!V[t.id].sheet, shown = wall(S.shown ? S.shown.wall : S.c.wall);
+    stage.className = 'stage bg-' + S.c.bg + ' tone-' + shown.tone + ' at-' + t.id + ' font-' + homeFont() + (homeFont() !== 'manrope' ? ' font-custom' : '')
+      + (S.fontSwitch ? ' is-font-switch' : '') + (sheet ? ' is-sheet' : '') + (S.reflow ? ' is-reflow' : '') + (ambient.shown ? ' has-ambient' : '') + (S.stack[0].f.r > 0 && !sheet ? ' is-deep' : '');
     applyHomeFont();
     if (!sheet) renderHome(t);
+    renderTicker();
     renderSheet(t, sheet);
     renderAppearance(t);
     renderFocusStatus(t);
+    syncAmbient();
   }
 
   function applyHomeFont() {
@@ -1058,24 +1085,17 @@
     if (appliedFont === id && appliedFontMetrics === metrics) return;
     appliedFont = id; appliedFontMetrics = metrics;
     var values = { 'display-family': '"' + f.family + '"', 'ui-family': '"' + ui.family + '"', 'primary-family': '"' + primary.family + '"', 'display-weight': f.display, 'ui-weight': ui.weight, 'primary-weight': primary.weight, 'clock-weight': f.clock,
-      'clock-shift': px(fontShift('clock', 48)), 'utility-shift': px(fontShift('ui', 28)), 'action-shift': px(fontShift('ui', 30)), 'heading-shift': px(fontShift('ui', 48)), 'full-name-shift': px(fontShift('primary', 30)), 'clock-digit': px(metrics ? metrics.digitCell : 0) };
+      'clock-shift': px(fontShift('clock', 48)), 'clock-digit': px(metrics ? metrics.digitCell : 0) };
     Object.keys(values).forEach(function (key) { homeEl.style.setProperty('--font-' + key, String(values[key])); });
   }
 
-  function homeState(t) {
-    var h = S.c.home, hs = { mode: 'browse', zone: null, i: Math.max(0, ensureSel()), u: -1, lifted: false, from: -1, arr: null, items: h.map(function (id) { return { key: id, kind: 'app', id: id }; }) };
-    if (isSettingsDetail(t)) hs.zone = 'preview';
-    else if (t.id === 'home') { hs.zone = t.f.zone; hs.u = t.f.u; }
-    return hs;
-  }
-
+  function homeFocus(t) { return t.id === 'home' ? t.f : null; }
   function renderHome(t) {
-    var hs = homeState(t);
-    renderCaption(t, hs);
-    renderUtils(hs);
-    if (S.c.layout === 'list') renderList(hs);
-    else { photoMode = null; renderDock(hs); }
-    renderAppFocusName(hs);
+    var f = homeFocus(t), base = S.stack[0].f;
+    renderMasthead();
+    renderUtils(f);
+    renderAlerts();
+    renderRails(f, base);
   }
 
   function clockText() {
@@ -1087,303 +1107,191 @@
     if (!metrics || !metrics.digitCell) return text;
     return text.replace(/[0-9]/g, function (digit) { return '<span class="clock-digit">' + digit + '</span>'; });
   }
-  function renderCaption(t, hs) {
-    var html = '<span class="clock">' + clockHtml() + '</span>';
-    if (S.c.apps !== 'icons' && hs.items[hs.i] && (S.c.layout === 'list' ? photoLabel(hs.items[hs.i].id, false).size < 88 || photoLabel(hs.items[hs.i].id, false).ellipsis : hs.zone === 'apps' && reducedDockLabel(hs.items[hs.i].id))) html += '<span class="cap-line full-name">' + esc(app(hs.items[hs.i].id).name) + '</span>';
-    setHTML(caption, html);
+  function deg(v) { return v === null || v === undefined ? '–' : Math.round(v) + '°'; }
+  function renderMasthead() {
+    var w = feed('weather'), d = new Date(), html = '<span class="clock">' + clockHtml() + '</span>'
+      + '<span class="mh-date">' + esc(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })) + '</span>', n, today;
+    if (w.status === 'ready') {
+      n = w.data.now; today = w.data.days[0] || {};
+      html += '<span class="mh-weather">' + FEEDS.weatherIcon(n.code, n.isDay, 'mh-wx') + '<span class="mh-temp">' + deg(n.temp) + '</span><span class="mh-desc">'
+        + esc(n.label) + (today.hi !== undefined && today.hi !== null ? ' · H ' + deg(today.hi) + ' L ' + deg(today.lo) : '') + '</span></span>';
+    }
+    setHTML(mastheadEl, html);
+  }
+  function renderUtils(f) {
+    var html = '';
+    utils().forEach(function (u, i) {
+      var focus = !!f && f.zone === 'util' && f.u === i;
+      html += '<button type="button" tabindex="-1" class="u' + (focus ? ' is-focus' : '') + '" data-z="util" data-i="' + i + '" data-action="util.' + u + '" aria-label="' + esc(UTIL[u][0]) + '">'
+        + icon(UTIL[u][1]) + '<span class="u-label">' + UTIL[u][0] + '</span></button>';
+    });
+    utilsEl.className = 'utils' + (f && f.zone === 'util' ? ' is-awake' : '');
+    setHTML(utilsEl, html);
+  }
+  function renderAlerts() {
+    var w = feed('weather'), list = w.status === 'ready' ? w.data.alerts : [];
+    alertsEl.className = 'alerts' + (list.length ? ' is-on' : '');
+    setHTML(alertsEl, list.length ? icon('warn') + '<span>' + esc(list.slice(0, 3).join(' · ')) + '</span>' : '');
   }
 
-  function utilBtn(z, i, action, inner, extra, name) {
-    return '<button type="button" tabindex="-1" class="u' + (extra || '') + '" data-z="' + z + '" data-i="' + i + '" data-action="' + action + '" aria-label="' + esc(name) + '"><span class="u-content">' + inner + '</span></button>';
-  }
-  function renderUtils(hs) {
-    var html = '', style = hs.mode === 'arrange' && S.c.controls !== 'text' ? 'both' : S.c.controls;
-    var iconsOnly = style === 'icons', U = utils(), focused = null;
-    utilsEl.className = 'utils quiet-utils is-' + style + (hs.zone === 'util' || hs.zone === 'ctl' ? ' is-awake' : '');
-    U.forEach(function (u, i) { html += utilBtn('util', i, 'util.' + u, icon(UTIL[u][1], '', true) + '<span class="u-label">' + UTIL[u][0] + '</span>', '', UTIL[u][0]); });
-    setHTML(utilsEl, html);
-    Array.prototype.forEach.call(utilsEl.querySelectorAll('.u'), function (b) {
-      var z = b.getAttribute('data-z'), focus = hs.zone === z && hs.u === Number(b.getAttribute('data-i'));
-      b.className = b.className.replace(/\s+is-focus/g, '') + (focus ? ' is-focus' : '');
-      if (focus) focused = b;
-    });
-    renderUtilFocusLabel(iconsOnly ? focused : null);
-    renderUtilityLens(focused, iconsOnly);
-  }
-  function renderUtilFocusLabel(button) {
-    var text, key, r, sr, scale, width, x;
-    if (!button) { utilFocusLabel.className = 'util-focus-label'; utilFocusKey = ''; return; }
-    text = S.err ? 'Not saved. OK tries again.' : button.getAttribute('aria-label');
-    key = button.getAttribute('data-action') + '|' + text + '|' + homeFont();
-    if (key !== utilFocusKey) {
-      utilFocusLabel.className = 'util-focus-label'; utilFocusLabel.textContent = text;
-      utilFocusLabel.offsetWidth;
-      utilFocusKey = key;
+  function tileHtml(it) {
+    var d = it.data, a, html;
+    if (it.kind === 'app') { a = app(it.id); return '<span class="rt-mark">' + appMark(a, 120, 72, 62) + '</span><span class="rt-name">' + esc(a.name) + '</span>'; }
+    if (it.kind === 'add') return icon('plus') + '<span class="rt-name">Add apps to Home</span>';
+    if (it.kind === 'status') return (it.error ? icon('warn') : '') + '<span class="rt-text">' + esc(it.text) + '</span>' + (it.error ? '<span class="rt-hint">OK tries again</span>' : '');
+    if (it.kind === 'poster') {
+      return '<span class="pt-art' + (d.image ? '' : ' is-missing') + '">' + (d.image ? '<img alt="" src="' + esc(d.image) + '">' : '') + '<span class="pt-fallback">' + esc(d.title) + '</span>'
+        + (d.progress ? '<span class="pt-progress"><i style="width:' + Math.round(d.progress * 100) + '%"></i></span>' : '') + '</span>'
+        + '<span class="pt-title">' + esc(d.title) + '</span><span class="pt-sub">' + (d.kind === 'continue' ? '<b>Continue</b> · ' : '') + esc(d.sub) + '</span>';
     }
-    r = button.getBoundingClientRect(); sr = sceneEl.getBoundingClientRect(); scale = sr.width / 1920 || 1;
-    width = Math.ceil(textWidth(text, 28, 500, -.2) + 8); x = (r.left + r.width / 2 - sr.left) / scale - width / 2;
-    if (S.c.layout === 'list') x = 1730 - width;
-    utilFocusLabel.style.width = width + 'px'; utilFocusLabel.style.left = clamp(x, 112, 1808 - width) + 'px';
-    utilFocusLabel.style.top = ((S.c.layout === 'list' ? (r.top + r.height / 2 - sr.top) / scale - 19 : 140) + fontShift('ui', 28)) + 'px';
-    utilFocusLabel.className = 'util-focus-label is-on';
+    if (it.kind === 'more') return '<span class="pt-art pt-more">' + FEEDS.icon('plex') + '<span>Open Plex</span></span>';
+    if (it.kind === 'ha') return FEEDS.icon(d.icon, 'ha-ico') + '<span class="ha-name">' + esc(d.name) + '</span><span class="ha-state">' + (d.routine ? 'Run' : d.on ? 'On' : 'Off') + '</span>';
+    if (it.kind === 'rooms') return FEEDS.icon('rooms', 'ha-ico') + '<span class="ha-name">All rooms</span><span class="ha-state">Open</span>';
+    if (it.kind === 'team') {
+      html = d.logo ? '<img class="tm-logo" alt="" src="' + esc(d.logo) + '">' : '<span class="tm-logo tm-blank"></span>';
+      return html + '<span class="tm-name">' + esc(d.name) + (d.record ? '<small>' + esc(d.record) + '</small>' : '') + '</span>'
+        + '<span class="tm-line k-' + d.line.kind + '">' + (d.line.kind === 'live' ? '<b class="tm-live">Live</b>' : '') + esc(d.line.text) + (d.line.detail ? '<span class="tm-detail"> · ' + esc(d.line.detail) + '</span>' : '') + '</span>';
+    }
+    if (it.kind === 'now') {
+      return FEEDS.weatherIcon(d.now.code, d.now.isDay, 'wx-big') + '<span class="wx-temp">' + deg(d.now.temp) + '</span><span class="wx-label">' + esc(d.now.label) + '</span>'
+        + '<span class="wx-facts">' + (d.now.pop >= 10 ? 'Rain ' + d.now.pop + '%' : 'Wind ' + esc(d.now.wind)) + (d.uv !== undefined && d.uv !== null ? ' · UV ' + Math.round(d.uv) : '') + '</span>';
+    }
+    if (it.kind === 'hour') return '<span class="wx-when">' + shortHour(d.time) + '</span>' + FEEDS.weatherIcon(d.code, d.isDay) + '<span class="wx-t">' + deg(d.temp) + '</span><span class="wx-pop">' + (d.pop >= 10 ? d.pop + '%' : '') + '</span>';
+    if (it.kind === 'day') return '<span class="wx-when">' + weekday(d.date) + '</span>' + FEEDS.weatherIcon(d.code, 1) + '<span class="wx-t">' + deg(d.hi) + '</span><span class="wx-pop">' + deg(d.lo) + '</span>';
+    return '';
   }
-  function renderUtilityLens(button, iconsOnly) {
-    var r, label, sr, scale, x, y, width, key, el;
-    if (!button || S.c.focus !== 'glass') {
-      utPlates.forEach(function (plateEl) { plateEl.className = 'ph-plate ut-lens is-outgoing'; });
-      utPlateKey = null;
+  function tileSig(it) {
+    var d = it.data;
+    if (it.kind === 'app') return it.id + '|' + app(it.id).name + '|' + S.c.bg;
+    if (it.kind === 'ha') return [d.name, d.icon, d.on, d.routine].join('|');
+    if (it.kind === 'status') return it.text;
+    return it.kind + '|' + JSON.stringify(d || null);
+  }
+  function railTops(R) {
+    var y = 0;
+    return R.map(function (r) { var top = y; y += (r.label ? RAIL_LABEL : 0) + r.h + RAIL_SPACE; return top; });
+  }
+  function bindImages(el) {
+    Array.prototype.forEach.call(el.querySelectorAll('img'), function (im) {
+      if (im._bound) return;
+      im._bound = true;
+      im.onerror = function () { this.style.display = 'none'; this.parentNode.className += ' is-missing'; };
+      if (im.complete && !im.naturalWidth) im.onerror();
+    });
+  }
+  function renderRails(f, base) {
+    var R = railList(), tops = railTops(R), focusRail = clamp(base.r, 0, R.length - 1), offset = (focusRail === 0 ? RAIL_FIRST : RAIL_ANCHOR) - tops[focusRail];
+    keyed(railsIn, R.map(function (r, ri) { return { key: r.id, rail: r, ri: ri }; }), function (el, entry) {
+      var r = entry.rail, ri = entry.ri, y = tops[ri] + offset, active = !!f && f.zone === 'rails' && f.r === ri, index = railIndex(base, r);
+      var xs = [], x = 0, total, sx, view, label, track, note;
+      if (!el._built) {
+        el.innerHTML = '<div class="rail-label"></div><div class="rail-view"><div class="rail-track"></div></div>';
+        el._built = true;
+      }
+      label = el.firstChild; view = el.lastChild; track = view.firstChild;
+      note = railNote.rail === r.id && railNote.text ? railNote.text : r.note || '';
+      setHTML(label, r.label ? '<span>' + esc(r.label) + '</span>' + (note ? '<span class="rail-note">' + esc(note) + '</span>' : '') : '');
+      el.className = 'rail rail-' + r.id + (active ? ' is-current' : '') + (ri < focusRail || y >= RAIL_FLOOR ? ' is-away' : ri > focusRail ? ' is-next' : '');
+      el.style.transform = 'translate3d(0,' + y + 'px,0)';
+      view.style.top = ((r.label ? RAIL_LABEL : 0) - 24) + 'px'; view.style.height = (r.h + 48) + 'px';
+      r.items.forEach(function (it) { xs.push(x); x += it.w + RAIL_GAP; });
+      total = Math.max(0, x - RAIL_GAP);
+      sx = railScroll[r.id] || 0;
+      if (xs[index] < sx) sx = xs[index];
+      if (xs[index] + r.items[index].w > sx + RAIL_W) sx = xs[index] + r.items[index].w - RAIL_W;
+      sx = clamp(sx, 0, Math.max(0, total - RAIL_W)); railScroll[r.id] = sx;
+      track.style.transform = 'translate3d(' + (-sx) + 'px,0,0)'; track.style.height = r.h + 'px'; track.style.width = Math.max(total, RAIL_W) + 'px';
+      view.className = 'rail-view' + (sx > 0 ? ' more-before' : '') + (total - sx > RAIL_W ? ' more-after' : '');
+      keyed(track, r.items, function (tile, it, i) {
+        var focus = active && i === index, out = xs[i] + it.w <= sx - 1 || xs[i] >= sx + RAIL_W + 1;
+        setContent(tile, tileSig(it), function () { return tileHtml(it); });
+        bindImages(tile);
+        tile.className = 'rt k-' + it.kind + (focus ? ' is-focus' : '') + (!active && r.id === 'apps' && i === index ? ' is-sel' : '') + (it.data && it.data.on ? ' is-on' : '')
+          + (it.stale ? ' is-stale' : '') + (it.data && it.data.line && it.data.line.kind === 'live' ? ' is-live' : '') + (out ? ' is-out' : '');
+        tile.style.width = it.w + 'px'; tile.style.height = r.h + 'px';
+        tile.style.transform = 'translate3d(' + xs[i] + 'px,0,0)' + (focus ? ' scale(' + (it.kind === 'poster' || it.kind === 'more' ? 1.05 : 1.06) + ')' : '');
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('aria-label', it.kind === 'app' ? app(it.id).name : tile.textContent.replace(/\s+/g, ' ').trim());
+        attrs(tile, 'rail', i, it.action); tile.setAttribute('data-id', r.id);
+      });
+    });
+    railsEl.className = 'rails' + (focusRail > 0 ? ' is-scrolled' : '');
+  }
+
+  /* Headlines move as a short conveyor: only enough to fill the screen are on the strip.
+     Each step is one Web Animation on transform, as tuned on the owner's 2020 TV. */
+  var TICKER_SPEED = 120, ticker = { queue: [], next: 0, anim: null, sig: -1 };
+  function headlineEl(h) {
+    var el = document.createElement('span');
+    el.className = 'headline';
+    el.innerHTML = '<span class="hl-tag">' + (h.kind === 'local' ? 'Local' : 'News') + '</span>' + esc(h.title) + (h.src ? '<span class="hl-src">' + esc(h.src) + '</span>' : '');
+    return el;
+  }
+  function fillTicker() {
+    if (!tickerTrack.offsetWidth && !tickerTrack.firstChild) { /* Hidden strips measure zero; retried on the next render. */ }
+    while (tickerTrack.scrollWidth < 1920 * 2 && ticker.queue.length && tickerTrack.childNodes.length < 24) tickerTrack.appendChild(headlineEl(ticker.queue[ticker.next++ % ticker.queue.length]));
+  }
+  function stepTicker() {
+    var first = tickerTrack.firstChild, dist;
+    ticker.anim = null;
+    if (!first || REDUCED_MOTION || !tickerTrack.animate) return;
+    dist = first.offsetWidth + (parseFloat(window.getComputedStyle(first).marginRight) || 0);
+    if (!(dist > 0)) return;
+    ticker.anim = tickerTrack.animate([{ transform: 'translate3d(0,0,0)' }, { transform: 'translate3d(' + -dist + 'px,0,0)' }], { duration: dist / TICKER_SPEED * 1000, easing: 'linear' });
+    if (!tickerRunning()) ticker.anim.pause();
+    ticker.anim.onfinish = function () {
+      if (first.parentNode === tickerTrack) tickerTrack.removeChild(first);
+      fillTicker(); stepTicker();
+    };
+  }
+  function tickerRunning() { return !document.hidden && top().id === 'home'; }
+  function renderTicker() {
+    var st = feed('news'), on = st.status === 'ready' && st.data.length > 0;
+    tickerEl.className = 'ticker' + (on ? ' is-on' : '');
+    if (!on) return;
+    if (st.updated !== ticker.sig) {
+      ticker.sig = st.updated; ticker.queue = st.data; ticker.next = 0;
+      if (!ticker.anim) { tickerTrack.innerHTML = ''; fillTicker(); stepTicker(); }
+    }
+    if (!ticker.anim && tickerRunning() && tickerTrack.firstChild) { fillTicker(); stepTicker(); }
+    if (ticker.anim) { if (tickerRunning()) { if (ticker.anim.playState === 'paused') ticker.anim.play(); } else if (ticker.anim.playState === 'running') ticker.anim.pause(); }
+  }
+
+  /* "My photos": one full-screen photo from Immich behind Home, cross-faded on a slow timer.
+     The wallpaper stays underneath until the first photo is ready, and again if photos fail. */
+  var ambient = { els: [$('ambientA'), $('ambientB')], i: 0, urls: [null, null], timer: 0, busy: false, shown: false, error: null };
+  function ambientWanted() { return S.c.bg === 'photos' && !!FEEDS && FEEDS.configured('photos') && !document.hidden && feedsStarted; }
+  function syncAmbient() {
+    if (!ambientWanted()) {
+      clearTimeout(ambient.timer); ambient.timer = 0;
+      if (S.c.bg !== 'photos' && ambient.shown) { ambient.shown = false; ambient.els.forEach(function (el) { el.className = 'ambient'; }); }
       return;
     }
-    r = button.getBoundingClientRect(); sr = sceneEl.getBoundingClientRect(); scale = sr.width / 1920 || 1;
-    y = (r.top - sr.top) / scale + 2;
-    if (S.c.layout === 'list') {
-      label = iconsOnly ? utilFocusLabel : button.querySelector('.u-label');
-      x = (label.getBoundingClientRect().left - sr.left) / scale - 24;
-      width = 1800 - x;
-    } else {
-      // Dock icons keep a fixed lens; the separate caption cannot overlap its neighbours.
-      x = (r.left - sr.left) / scale; width = r.width / scale;
-    }
-    key = button.getAttribute('data-action') + '|' + x + '|' + y + '|' + width;
-    if (key !== utPlateKey) {
-      utPlates[utPlateIndex].className = 'ph-plate ut-lens is-outgoing';
-      utPlateIndex = 1 - utPlateIndex; el = utPlates[utPlateIndex];
-      el.className = 'ph-plate ut-lens is-preparing';
-      el.style.width = width + 'px'; el.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-      fieldTransform(utFields[utPlateIndex], x, y, width, 60);
-      el.offsetWidth;
-      utPlateKey = key;
-    }
-    fieldTransform(utFields[utPlateIndex], x, y, width, 60);
-    utPlates[utPlateIndex].className = 'ph-plate ut-lens is-current on-focus';
+    if (!ambient.timer && !ambient.busy) nextAmbient();
   }
-  function renderAppFocusName(hs) {
-    var it = hs.items[hs.i], width, x, y, placement;
-    if (S.c.apps !== 'icons' || hs.mode !== 'browse' || hs.zone !== 'apps' || !it) { appFocusName.className = 'app-focus-name'; return; }
-    appFocusName.textContent = app(it.id).name;
-    width = Math.min(S.c.layout === 'list' ? 1056 : 1640, Math.ceil(textWidth(app(it.id).name, S.c.layout === 'list' ? 40 : 36, 500, -.6, 'primary') + 8));
-    appFocusName.style.width = width + 'px';
-    if (S.c.layout === 'list') {
-      x = 280; placement = phFields[photoPlateIndex]._placement;
-      y = placement.y + placement.height / 2 - 24;
-    } else {
-      x = clamp(dockAnchorCenter - width / 2, 140, 1780 - width); y = 932;
-    }
-    appFocusName.style.left = x + 'px'; appFocusName.style.top = (y + fontShift('primary', S.c.layout === 'list' ? 40 : 36)) + 'px';
-    appFocusName.className = 'app-focus-name is-on';
-  }
-
-  function dockGeom(n) {
-    var m = DOCK_MODES[S.c.apps], vis = Math.max(1, Math.min(5, n)), shelfW = vis * m.pitch - 8, w = shelfW + 32;
-    var broad = S.geom === 'broad' && n > 5;
-    if (n < 0) { w = 912; shelfW = 880; }
-    else if (broad) { w = 1728; shelfW = 1696; }
-    return { x: Math.round((1920 - w) / 2), y: 908 - m.th - 32, h: m.th + 32, w: w, shelf: shelfW, vis: vis, broad: broad, empty: n < 0, tw: m.tw, th: m.th, pitch: m.pitch };
-  }
-  /* Five centred: the window moves one tile when focus passes an edge. Broad: keep a
-     148px glimpse of the neighbour, as the current dock does. */
-  function dockOffset(n, i, g) {
-    var off, left, first, glimpse = g.tw / 2;
-    if (g.broad) {
-      off = scroll.off * g.pitch; left = i * g.pitch;
-      if (left - off < (i > 0 ? glimpse : 0)) off = left - (i > 0 ? glimpse : 0);
-      if (left + g.tw - off > g.shelf - (i < n - 1 ? glimpse : 0)) off = left + g.tw - g.shelf + (i < n - 1 ? glimpse : 0);
-      off = clamp(off, 0, Math.max(0, n * g.pitch - 8 - g.shelf));
-      if (!S.reflow) { scroll.off = off / g.pitch; scroll.first = Math.round(scroll.off); }
-      return off;
-    }
-    first = clamp(scroll.first, 0, Math.max(0, n - g.vis));
-    if (i < first) first = i;
-    if (i > first + g.vis - 1) first = i - g.vis + 1;
-    if (!S.reflow) { scroll.first = first; scroll.off = first; }
-    return first * g.pitch;
-  }
-  function dockTileHtml(it, full) {
-    var a, body;
-    if (it.kind === 'add') return '<span class="add">' + icon('plus') + '</span><span class="label">' + (full ? 'Home is full' : 'Add app') + '</span>';
-    a = app(it.id);
-    body = S.c.apps === 'text' ? '' : appMark(a, S.c.apps === 'icons' ? 136 : 120, S.c.apps === 'icons' ? 88 : 72, S.c.apps === 'icons' ? 72 : 58);
-    return body + (S.c.apps === 'icons' ? '' : '<span class="label" style="font-size:' + dockLabelSize(a.id) + 'px;top:' + ((S.c.apps === 'text' ? 28 : 128) + fontShift('primary', dockLabelSize(a.id))) + 'px"><span class="label-ink">' + esc(a.name) + '</span></span>') + '<span class="nudge nudge-l">' + icon('left') + '</span><span class="nudge nudge-r">' + icon('right') + '</span>';
-  }
-  /* A wide label can reach the shelf before its icon. Check the rendered icon box,
-     including during the track's 180ms transition, so both disappear together. */
-  function syncDockEdges() {
-    var broad = S.c.layout === 'dock' && S.geom === 'broad', clip = shelf.getBoundingClientRect(), changes = [];
-    Array.prototype.forEach.call(track.querySelectorAll('.tile'), function (tile) {
-      var content = tile.querySelector(S.c.apps === 'text' ? '.label-ink' : '.mark'), r = content ? content.getBoundingClientRect() : null;
-      var outside = broad && r && (r.right <= clip.left || r.left >= clip.right);
-      var cls = tile.className.replace(/\s+is-outside-icon/g, '') + (outside ? ' is-outside-icon' : '');
-      if (tile.className !== cls) changes.push({ tile: tile, cls: cls });
+  function nextAmbient() {
+    ambient.busy = true;
+    FEEDS.photos.next(function (url, err) {
+      var k = 1 - ambient.i, el = ambient.els[k], im;
+      ambient.busy = false; ambient.error = err ? err.message : null;
+      clearTimeout(ambient.timer);
+      ambient.timer = setTimeout(function () { ambient.timer = 0; syncAmbient(); }, FEEDS.photos.every() * QA.minuteMs);
+      if (!url) return;
+      if (!ambientWanted()) { window.URL.revokeObjectURL(url); return; }
+      im = new Image();
+      im.onload = function () {
+        var old = ambient.urls[k];
+        el.src = url; ambient.urls[k] = url;
+        el.className = 'ambient is-on'; ambient.els[ambient.i].className = 'ambient';
+        ambient.i = k;
+        if (!ambient.shown) { ambient.shown = true; render(); }
+        if (old) setTimeout(function () { window.URL.revokeObjectURL(old); }, 3000);
+      };
+      im.onerror = function () { window.URL.revokeObjectURL(url); };
+      im.src = url;
     });
-    changes.forEach(function (change) { change.tile.className = change.cls; });
-  }
-  function trackDockEdges() {
-    dockEdgeFrame = 0;
-    if (S.c.layout !== 'dock' || S.geom !== 'broad') return;
-    syncDockEdges();
-    if (Date.now() < dockEdgeUntil) dockEdgeFrame = window.requestAnimationFrame(trackDockEdges);
   }
 
-  function renderDock(hs) {
-    var items = hs.items, n = items.length, empty = hs.mode !== 'arrange' && !n, g = dockGeom(empty ? -1 : n);
-    var anchor = clamp(hs.i, 0, Math.max(0, n - 1)), off = empty ? 0 : dockOffset(n, anchor, g);
-    var full = false, ns = n;
-    var tileFocus = hs.zone === 'apps' || hs.zone === 'tiles', tileSel = hs.zone === 'util' || hs.zone === 'act' || hs.zone === 'ctl' || hs.zone === 'preview';
-    var focusItem = items[anchor], s, ax, label, width;
-
-    dock.className = 'dock' + (empty ? ' is-empty' : '');
-    dock.style.left = g.x + 'px'; dock.style.top = g.y + 'px'; dock.style.width = g.w + 'px'; dock.style.height = g.h + 'px';
-    dock.style.setProperty('--tile-w', g.tw + 'px'); dock.style.setProperty('--tile-h', g.th + 'px'); dock.style.setProperty('--dock-h', g.h + 'px');
-    dock.style.setProperty('--nudge-top', ((g.th - 48) / 2) + 'px');
-    dockAnchorCenter = g.x + 16 + anchor * g.pitch - off + g.tw / 2;
-    IMG.mat.style.left = (-g.x) + 'px'; IMG.mat.style.top = (-g.y) + 'px';
-    IMG.mat.style.transformOrigin = '960px ' + (g.y + g.h / 2) + 'px';
-    matScrim.style.left = (-g.x) + 'px'; matScrim.style.top = (SCRIM_Y - g.y) + 'px';
-    matScrim.style.transformOrigin = '960px ' + (g.y + g.h / 2 - SCRIM_Y) + 'px';
-    shelf.style.width = g.shelf + 'px';
-    shelf.className = 'shelf' + (g.broad && off > 0 ? ' fade-l' : '') + (g.broad && off + g.shelf < n * g.pitch - 8 ? ' fade-r' : '');
-
-    keyed(track, empty ? [] : items, function (el, it, i) {
-      var a = it.id ? app(it.id) : null, left = i * g.pitch, focus = tileFocus && i === anchor, sel = tileSel && i === anchor;
-      var lifted = hs.lifted && i === anchor, partial = g.broad && (left - off < -1 || left + g.tw - off > g.shelf + 1);
-      setContent(el, it.kind + '|' + (it.id || '') + '|' + (it.id ? dockLabelSize(it.id) : full) + '|' + S.c.bg + '|' + S.c.apps + '|' + homeFont(), function () { return '<span class="tile-content">' + dockTileHtml(it, full) + '</span>'; });
-      el.className = 'tile k-' + it.kind + (focus ? ' is-focus' : '') + (sel ? ' is-sel' : '') + (lifted ? ' is-lifted' : '') + (partial ? ' is-partial' : '')
-        + (a && !a.mark ? ' is-text' : '') + (it.kind === 'add' && full ? ' is-full' : '') + (it.kind === 'app' && S.press === it.id ? ' is-press' : '')
-        + (lifted && i === 0 ? ' no-l' : '') + (lifted && i >= ns - 1 ? ' no-r' : '');
-      el.style.transform = 'translate3d(' + left + 'px,0,0)';
-      el.setAttribute('role', 'button');
-      if (a) el.setAttribute('aria-label', a.name);
-      if (hs.mode === 'arrange') attrs(el, 'tile', i, 'arrange.' + (it.kind === 'add' ? 'add' : (it.kind === 'ph' ? 'placeholder.' : 'tile.') + it.id));
-      else attrs(el, 'app', i, 'home.app.' + it.id);
-    });
-    track.style.transform = 'translate3d(' + (-off) + 'px,0,0)';
-    syncDockEdges();
-    if (g.broad) {
-      dockEdgeUntil = Date.now() + 220;
-      if (!dockEdgeFrame) dockEdgeFrame = window.requestAnimationFrame(trackDockEdges);
-    }
-    plate.className = 'plate' + (!n || empty || hs.zone === null ? '' : hs.lifted ? ' on-lift' : tileFocus ? ' on-focus' : tileSel ? ' on-sel' : '');
-    plate.style.transform = 'translate3d(' + (anchor * g.pitch) + 'px,0,0)';
-
-    cueL.style.left = (g.x - 72) + 'px'; cueR.style.left = (g.x + g.w + 24) + 'px';
-    cueL.style.top = cueR.style.top = (g.y + g.h / 2 - 24) + 'px';
-    cueL.className = 'cue' + (!g.broad && !empty && scroll.first > 0 ? ' is-on' : '');
-    cueR.className = 'cue' + (!g.broad && !empty && scroll.first + g.vis < n ? ' is-on' : '');
-
-    ax = g.x + 16 + anchor * g.pitch - off;
-    if (hs.mode === 'arrange' && !hs.lifted && (hs.zone === 'tiles' || hs.zone === 'act') && focusItem && focusItem.kind !== 'add') {
-      s = hs.arr.slots[anchor];
-      label = (s.removed ? 'Restore ' : 'Remove ') + app(s.id).name; width = actionWidth(label);
-      ax = clamp(ax + (g.tw - width) / 2, 112, 1808 - width);
-      setHTML(dockAction, '<span>' + esc(label) + '</span>');
-      dockAction.className = 'dock-action is-on' + (hs.zone === 'act' ? ' is-focus' : '');
-      dockAction.style.width = width + 'px';
-      dockAction.style.transform = 'translate3d(' + ax + 'px,0,0)';
-      attrs(dockAction, 'act', anchor, 'arrange.' + (s.removed ? 'restore.' : 'remove.') + s.id);
-    } else {
-      dockAction.className = 'dock-action';
-      dockAction.removeAttribute('data-z'); dockAction.removeAttribute('data-action');
-    }
-    setHTML(dockEmpty, empty ? '<p>No apps on Home</p><button type="button" tabindex="-1" class="btn' + (hs.zone === 'empty' ? ' is-focus' : '') + '" data-z="empty" data-i="0" data-action="home.add-apps">' + icon('plus') + '<span>Add apps</span></button>' : '');
-  }
-
-  function photoModeTransition(compact) {
-    if (photoMode !== null && photoMode !== compact) {
-      var ghost = phScene.cloneNode(true), token = ++photoTransitionToken;
-      ghost.removeAttribute('id'); ghost.setAttribute('aria-hidden', 'true');
-      Array.prototype.forEach.call(ghost.querySelectorAll('[id],[data-action],[data-z]'), function (el) {
-        el.removeAttribute('id'); el.removeAttribute('data-action'); el.removeAttribute('data-z');
-      });
-      ghost.className = 'ph-scene ph-ghost';
-      phScene.parentNode.appendChild(ghost);
-      phScene.className = 'ph-scene ph-incoming';
-      setTimeout(function () {
-        if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-        if (token === photoTransitionToken) phScene.className = 'ph-scene';
-      }, 180);
-    }
-    photoMode = compact;
-  }
-  /* Each plate keeps a stationary, stage-registered field while its opacity changes.
-     Reuse the hidden group for the next label; never animate plate width or position. */
-  function renderPhotoPlate(id, width, height, y, state) {
-    var key = id + '|' + width + '|' + height + '|' + y, plateEl, fieldEl;
-    if (key !== photoPlateKey) {
-      phPlates[photoPlateIndex].className = phPlates[photoPlateIndex].className.replace(' is-current', '') + ' is-outgoing';
-      photoPlateIndex = 1 - photoPlateIndex;
-      plateEl = phPlates[photoPlateIndex]; fieldEl = phFields[photoPlateIndex];
-      plateEl.className = 'ph-plate is-preparing';
-      plateEl.style.width = width + 'px'; plateEl.style.height = height + 'px';
-      plateEl.style.transform = 'translate3d(0,' + y + 'px,0)';
-      fieldTransform(fieldEl, 112, y, width, height);
-      plateEl.offsetWidth; // Establish zero opacity before the incoming crossfade.
-      photoPlateKey = key;
-    }
-    fieldTransform(phFields[photoPlateIndex], 112, y, width, height);
-    phPlates[photoPlateIndex].className = 'ph-plate is-current' + (state ? ' ' + state : '');
-  }
-  function fieldTransform(el, x, y, width, height) {
-    el._placement = { x: x, y: y, width: width, height: height };
-    el.style.transformOrigin = (x + width / 2) + 'px ' + (y + height / 2) + 'px';
-    el.style.transform = 'translate3d(' + (-x) + 'px,' + (-y) + 'px,0)' + (S.c.bg === 'photo' && S.c.material === 'tint' && !REDUCED_MOTION ? ' scale(1.04)' : '');
-  }
-  function renderList(hs) {
-    var items = hs.items, n = items.length, compact = hs.mode === 'arrange', pitch = compact ? PH_COMPACT_PITCH : PH_PITCH;
-    var anchor = clamp(hs.i, 0, Math.max(0, n - 1)), first, off, width, slot, y, s, label, aw, plateState;
-    var rowFocus = hs.zone === 'apps' || hs.zone === 'tiles', remembered = hs.zone === 'util' || hs.zone === 'act' || hs.zone === 'ctl' || hs.zone === 'preview';
-    photoModeTransition(compact);
-    if (compact) {
-      first = clamp(scroll.photoArrange, anchor - 7, anchor - 1);
-      first = clamp(first, 0, Math.max(0, n - PH_COMPACT_VISIBLE));
-      scroll.photoArrange = first;
-    } else {
-      first = clamp(scroll.photo, anchor - 3, anchor - 1);
-      first = clamp(first, 0, Math.max(0, n - PH_FULL));
-      scroll.photo = first;
-    }
-    off = first * pitch; slot = anchor - first;
-    width = items[anchor] ? listPlateWidth(items[anchor].id, compact) : 360;
-    phList.className = 'ph-list' + (compact ? ' is-compact' : '');
-    phList.style.height = PH_HEIGHT + 'px';
-    phRows.style.top = (compact ? 72 : 148) + 'px';
-    keyed(phRows, items, function (row, it, i) {
-      var typography = photoLabel(it.id, compact), focus = rowFocus && i === anchor, lifted = hs.lifted && i === anchor, markImage, body = '';
-      setContent(row, it.id + '|' + typography.size + '|' + S.c.bg + '|' + S.c.apps + '|' + homeFont(), function () {
-        if (S.c.apps !== 'text') body += appMark(app(it.id), S.c.apps === 'icons' ? compact ? 64 : 88 : compact ? 60 : 84, S.c.apps === 'icons' ? compact ? 64 : 88 : compact ? 44 : 64, S.c.apps === 'icons' ? compact ? 52 : 72 : compact ? 42 : 54);
-        if (S.c.apps !== 'icons') body += '<span class="ph-name" style="font-size:' + typography.size + 'px;top:' + typography.top + 'px">' + esc(app(it.id).name) + '</span>';
-        return '<span class="ph-group">' + body + '</span><span class="ph-move ph-move-up">' + icon('up') + '</span><span class="ph-move ph-move-down">' + icon('down') + '</span>';
-      });
-      markImage = row.querySelector('.mark img');
-      if (markImage) {
-        markImage.onerror = function () { this.style.visibility = 'hidden'; };
-        if (markImage.complete && !markImage.naturalWidth) markImage.style.visibility = 'hidden';
-      }
-      row.className = 'ph-row k-' + it.kind + (focus ? ' is-focus' : '') + (remembered && i === anchor ? ' is-sel' : '') + (lifted ? ' is-lifted' : '')
-        + (lifted && i === 0 ? ' no-up' : '') + (lifted && i === n - 1 ? ' no-down' : '')
-        + (it.kind === 'app' && S.press === it.id ? ' is-press' : '');
-      row.style.width = (compact ? listPlateWidth(it.id, compact) : 1200) + 'px'; row.style.height = pitch + 'px';
-      row.style.transform = 'translate3d(0,' + (i * pitch) + 'px,0)';
-      row.setAttribute('role', 'button'); row.setAttribute('aria-label', app(it.id).name);
-      attrs(row, compact ? 'tile' : 'app', i, compact ? 'arrange.' + (it.kind === 'ph' ? 'placeholder.' : 'tile.') + it.id : 'home.app.' + it.id);
-    });
-    phRows.style.transform = 'translate3d(0,' + (-off) + 'px,0)';
-    y = (compact ? PH_COMPACT_TOP + 2 : PH_TOP + 1) + slot * pitch;
-    plateState = !n || hs.zone === null ? '' : hs.lifted ? 'on-lift' : S.c.focus === 'glass' && rowFocus ? 'on-focus' : S.c.focus === 'glass' && remembered ? 'on-sel' : '';
-    renderPhotoPlate(items[anchor] ? items[anchor].id : '', width, compact ? 88 : 134, y, plateState);
-    if (compact && !hs.lifted && (hs.zone === 'tiles' || hs.zone === 'act') && items[anchor]) {
-      s = hs.arr.slots[anchor]; label = (s.removed ? 'Restore ' : 'Remove ') + app(s.id).name; aw = actionWidth(label);
-      setHTML(phAction, '<span>' + esc(label) + '</span>');
-      phAction.className = 'ph-action is-on' + (hs.zone === 'act' ? ' is-focus' : '');
-      phAction.style.width = aw + 'px';
-      phAction.style.transform = 'translate3d(' + (112 + width + 24) + 'px,' + (PH_COMPACT_TOP + slot * pitch + 12) + 'px,0)';
-      attrs(phAction, 'act', anchor, 'arrange.' + (s.removed ? 'restore.' : 'remove.') + s.id);
-    } else { phAction.className = 'ph-action'; phAction.removeAttribute('data-z'); phAction.removeAttribute('data-action'); }
-    phEmpty.className = 'ph-empty' + (!compact && !n ? ' is-on' : '');
-    setHTML(phEmpty, !compact && !n ? '<p>No apps on Home</p><button type="button" tabindex="-1" class="btn' + (hs.zone === 'empty' ? ' is-focus' : '') + '" data-z="empty" data-i="0" data-action="home.add-apps">' + icon('plus') + '<span>Add apps</span></button>' : '');
-  }
-
-  /* Sheets: a frame is built once per view/mode; fill() updates its slots. Persistent
-     scrollers let transforms animate. */
   function renderSheet(t, sheet) {
     var key;
     sheetEl.hidden = !(sheet || isSettingsDetail(t));
@@ -1392,7 +1300,7 @@
     else sheetView.removeAttribute('aria-modal');
     sceneEl.setAttribute('aria-hidden', sheet || isSettingsDetail(t) ? 'true' : 'false');
     if (!sheet) { sheetView.innerHTML = ''; sheetKey = ''; return; }
-    key = t.id + '|' + (t.mode || '') + '|' + (t.msg || '') + '|' + S.variant + '|' + S.c.bg;
+    key = t.id + '|' + (t.mode || '') + '|' + (t.msg || '') + '|' + S.c.bg;
     if (key !== sheetKey) {
       sheetView.innerHTML = FRAMES[t.id](t);
       sheetKey = key; slotEls = {};
@@ -1418,15 +1326,15 @@
         + ' data-z="detail" data-i="0" data-id="' + item.action + '" data-action="' + item.action + '">' + inner
         + (item.axis ? '<span class="setting-tick" aria-hidden="true">' + (applied ? icon('check') : '') + '</span>' : '') + '</button>';
     }
-    setHTML(appearanceBack, command({ action: 'settings.back', label: t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? 'Samsung' : 'Settings' }, icon('left') + '<span>' + (t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? 'Samsung' : 'Settings') + '</span>', 'setting-back'));
+    setHTML(appearanceBack, command({ action: 'settings.back', label: backLabel(t) }, icon('left') + '<span>' + backLabel(t) + '</span>', 'setting-back'));
     setHTML(appearanceRows, detailSections(t).map(function (section) {
       return '<section class="setting-section' + (section.horizontal ? ' is-horizontal' : '') + ' section-' + section.id + '">'
         + (section.title ? '<h3 class="setting-label" id="setting-' + section.id + '">' + section.title + '</h3>' : '')
         + '<div class="setting-options"' + (section.items[0].axis ? ' role="radiogroup" aria-label="' + esc(section.title || LOOK_NAMES[section.id] || DETAIL_NAMES[t.group]) + '"' : '') + '>'
         + section.items.map(function (item) {
           var swatch = item.axis === 'bg', body = '';
-          if (swatch || item.thumbnail) body += item.value === 'light' || item.value === 'dark'
-            ? '<span class="setting-swatch swatch-' + item.value + '" aria-hidden="true"></span>'
+          if (swatch || item.thumbnail) body += item.value === 'light' || item.value === 'dark' || item.value === 'photos'
+            ? '<span class="setting-swatch swatch-' + item.value + '" aria-hidden="true">' + (item.value === 'photos' ? icon('art') : '') + '</span>'
             : '<img class="setting-swatch" src="' + WP + S.c.wall + '-thumb.jpg" alt="">';
           body += '<span class="setting-copy"><span class="setting-name">' + esc(item.label) + '</span>'
             + (item.description ? '<span class="setting-description">' + esc(item.description) + '</span>' : '') + '</span>';
@@ -1441,7 +1349,7 @@
         + command({ action: 'settings.retry', label: 'Try again' }, '<span>Try again</span>', 'setting-retry');
     }
     setHTML(appearanceStatus, status);
-    hint = selected.disabled ? '' : selected.action === 'settings.back' ? 'Return to ' + (t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? 'Samsung' : 'Settings') : selected.action === 'settings.retry' ? 'Retry this change' : selected.axis ? 'Apply selected setting' : selected.action === 'background.wallpaper' ? 'Choose a wallpaper' : selected.action === 'background.rotation' ? 'Choose a rotation interval' : 'Open on the TV';
+    hint = selected.disabled ? '' : selected.action === 'settings.back' ? 'Return to ' + backLabel(t) : selected.action === 'settings.retry' ? 'Retry this change' : selected.axis ? 'Apply selected setting' : selected.action === 'background.wallpaper' ? 'Choose a wallpaper' : selected.action === 'background.rotation' ? 'Choose a rotation interval' : 'Open on the TV';
     setHTML(appearanceDesc, hint ? '<span class="remote-key">OK</span><span>' + esc(hint) + '</span>' : '');
   }
   function renderWallpaper(t) {
@@ -1481,42 +1389,18 @@
     if (t.f.zone === 'photo' && candidate.id === S.c.wall && !S.pending && !t.failedId) hint = '';
     setHTML(appearanceDesc, hint ? '<span class="remote-key">OK</span><span>' + hint + '</span>' : '');
   }
-  /* Keep the retry or membership state on the focused control. The stage-level line
-     shares its position without changing the control's identity or key behaviour. */
+  /* A failed save is reported beside the focused control without moving focus. */
   function renderFocusStatus(t) {
-    if (isSettingsDetail(t)) { focusStatus.className = 'focus-status'; return; }
-    var root = isSettingsDetail(top()) ? appearanceEl : sheetEl.hidden ? homeEl : sheetEl, active = root.querySelectorAll('.is-focus[data-action]'), target = null, text = S.err ? 'Not saved. OK tries again.' : '', i, r, sr, scale, x, y, w, action, solid, photoRow = false, photoFree = false;
-    Array.prototype.forEach.call(stage.querySelectorAll('.has-local-status'), function (el) { el.className = el.className.replace(/\s+has-local-status/g, ''); });
+    var root = sheetEl.hidden ? homeEl : sheetEl, active = root.querySelectorAll('.is-focus[data-action]'), target = null, i, r, sr, scale;
+    if (isSettingsDetail(t) || !S.err) { focusStatus.className = 'focus-status'; return; }
     for (i = 0; i < active.length; i++) if (renderedAction(active[i])) { target = active[i]; break; }
-    if (!text && t.id === 'arrange' && (t.f.zone === 'act' || t.f.zone === 'tiles')) {
-      var slot = t.slots[t.f.i];
-      if (slot && !slot.removed && t.f.zone === 'act' && S.c.home.length === 1) text = LAST;
-    }
-    if (!text && S.note === LAST && t.id === 'arrange') text = LAST;
-    if (!target || !text) { focusStatus.className = 'focus-status'; return; }
-    if (target.parentNode === utilsEl && utilsEl.className.indexOf('is-icons') >= 0) { renderUtilFocusLabel(target); focusStatus.className = 'focus-status'; return; }
-    // Photo action pills stay on one line; the header already carries this status.
-    if (S.c.layout === 'list' && t.id === 'arrange' && !t.lifted && (t.f.zone === 'act' || t.f.zone === 'tiles')) { focusStatus.className = 'focus-status'; return; }
-    photoRow = S.c.layout === 'list' && target.className.indexOf('ph-row') >= 0;
-    if (photoRow && phAction.className.indexOf('is-on') >= 0) target = phAction;
-    else if (photoRow) photoFree = true;
-    target.className += ' has-local-status';
-    action = target.getAttribute('data-action');
+    if (!target) { focusStatus.className = 'focus-status'; return; }
     r = target.getBoundingClientRect(); sr = stage.getBoundingClientRect(); scale = sr.width / 1920 || 1;
-    x = (r.left - sr.left) / scale; y = (r.top - sr.top) / scale; w = r.width / scale;
-    if (photoFree) { x = 112 + parseFloat(phPlates[photoPlateIndex].style.width) + 24; y += (r.height / scale - 28) / 2; w = 400; }
-    else if (action.indexOf('home.app.') === 0 || action.indexOf('arrange.tile.') === 0 || action.indexOf('arrange.placeholder.') === 0) y += 171;
-    else if (action.indexOf('apps.order.') === 0) y += 86;
-    else if (action.indexOf('apps.toggle.') === 0 || action.indexOf('apps.add.') === 0) y += 164;
-    else if (action.indexOf('layout.') === 0) y += 54;
-    else y += action.indexOf('arrange.remove.') === 0 || action.indexOf('arrange.restore.') === 0 ? 43 : 40;
-    solid = /(?:^|\s)(?:u|btn|er-rm|dock-action|set-row|ph-action)(?:\s|$)/.test(target.className) && target.parentNode !== utilsEl && target.parentNode.className.indexOf('s-head') < 0;
-    if (target === phAction && target.className.indexOf('is-focus') < 0) solid = false;
-    focusStatus.className = 'focus-status is-on' + (solid ? ' dark-ink' : '') + (photoFree ? ' photo-status' : '');
-    focusStatus.textContent = text;
-    focusStatus.style.left = clamp(x + 8, 112, 1808 - Math.min(w - 16, 800)) + 'px';
-    focusStatus.style.top = clamp(y, 72, 988) + 'px';
-    focusStatus.style.width = Math.min(w - 16, 800) + 'px';
+    focusStatus.className = 'focus-status is-on';
+    focusStatus.textContent = 'Not saved. OK tries again.';
+    focusStatus.style.left = clamp((r.left - sr.left) / scale, 112, 1408) + 'px';
+    focusStatus.style.top = clamp((r.bottom - sr.top) / scale + 12, 72, 988) + 'px';
+    focusStatus.style.width = '400px';
   }
   function headButtons(list, fi, prefix) {
     return list.map(function (b, i) {
@@ -1535,6 +1419,10 @@
         + '<div class="ed-home" data-slot="home"></div><div class="ed-order-break" data-slot="break">Then scroll</div><div class="ed-other-view" data-slot="ov"><div class="ed-other" data-slot="other"></div></div><div class="ed-origin" data-slot="origin"></div>'
         + '<div class="row-cue editor-before" data-slot="otherBefore" aria-hidden="true">' + icon('up') + '</div><div class="row-cue editor-after" data-slot="otherAfter" aria-hidden="true">' + icon('down') + '</div>';
     },
+    ha: function () {
+      return '<h2 class="s-title">Home</h2><p class="s-sub" data-slot="sub"></p><div class="ha-view" data-slot="view"><div class="ha-in" data-slot="grid"></div></div>'
+        + '<div class="row-cue ha-before" data-slot="before" aria-hidden="true">' + icon('up') + '</div><div class="row-cue ha-after" data-slot="after" aria-hidden="true">' + icon('down') + '</div>';
+    },
     settings: function () { return '<h2 class="s-title">Settings</h2><div class="settings-overview" data-slot="list"></div><p class="settings-overview-hint"><span class="remote-key">OK</span><span>Open selected group</span></p>'; },
     message: function (t) {
       var m = messageContent(t);
@@ -1546,6 +1434,35 @@
     return '<span class="panel-content">' + appMark(a, 120, 72, 58) + '<span class="label">' + esc(a.name) + '</span></span><span class="state">' + state + '</span>';
   }
   var FILLS = {
+    ha: function (t, el) {
+      var L = haLayout(), cur = L.tiles[t.f.i], st = feed('home'), items;
+      setHTML(el.sub, esc(S.note || (st.status === 'error' ? st.error : st.status === 'loading' && !st.data ? 'Connecting to Home Assistant…' : 'OK turns a device on or off, or runs a routine.')));
+      if (cur) {
+        if (cur.y < t.top + HA_HEAD) t.top = Math.max(0, cur.y - HA_HEAD);
+        if (cur.y + HA_TILE_H > t.top + HA_VIEW) t.top = cur.y + HA_TILE_H - HA_VIEW;
+      }
+      t.top = clamp(t.top, 0, Math.max(0, L.height - HA_VIEW));
+      items = L.heads.map(function (h) { return { key: h.key, head: h }; }).concat(L.tiles.map(function (tile, i) { return { key: tile.key, tile: tile, i: i }; }));
+      keyed(el.grid, items, function (node, it) {
+        var tile = it.tile, d;
+        if (it.head) {
+          setContent(node, 'h|' + it.head.name, function () { return esc(it.head.name); });
+          node.className = 'ha-head'; node.style.transform = 'translate3d(0,' + it.head.y + 'px,0)';
+          return;
+        }
+        d = tile.item;
+        setContent(node, [d.id, d.name, d.icon, d.state].join('|'), function () {
+          return '<span class="panel-content">' + FEEDS.icon(d.icon, 'ha-ico') + '<span class="ha-name">' + esc(d.name) + '</span><span class="ha-state">' + esc(d.state) + '</span></span>';
+        });
+        node.className = 'ha-tile' + (it.i === t.f.i ? ' is-focus' : '') + (d.on ? ' is-on' : '') + (d.na ? ' is-na' : '') + (d.routine ? ' is-routine' : '');
+        node.style.transform = 'translate3d(' + tile.x + 'px,' + tile.y + 'px,0)';
+        node.setAttribute('role', 'button'); node.setAttribute('aria-label', d.name + ', ' + d.state);
+        attrs(node, 'ha', it.i, 'ha.entity.' + d.id);
+      });
+      el.grid.style.transform = 'translate3d(0,' + (-t.top) + 'px,0)';
+      el.before.className = 'row-cue ha-before' + (t.top > 0 ? ' is-on' : '');
+      el.after.className = 'row-cue ha-after' + (L.height - t.top > HA_VIEW ? ' is-on' : '');
+    },
     apps: function (t, el) {
       var f = t.f, items = appsItems(), n = items.length, rows = Math.ceil(n / COLS), vis = 3, row = Math.floor(f.i / COLS);
       setHTML(el.title, 'All apps');
@@ -1642,9 +1559,6 @@
 
   /* ---------- Atomic appearance bundles ---------- */
   var wallToken = 0, committedBundle = null, reflowToken = 0, fontSwitchToken = 0;
-  function registeredMaterial(id) { return S.c.bg === 'photo' && S.c.material === 'soft' && !!wall(id); }
-  function matSrc(id, material) { return 'assets/materials/' + id + (material === 'soft' ? '-study-soft.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
-  function fieldSrc(id, material) { return 'assets/materials/' + id + (material === 'soft' ? '-field-blur.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
   function makeImg(cls, src) { var im = document.createElement('img'); im.className = cls; im.alt = ''; im._src = src; im.src = src; return im; }
   function whenReady(im, done) {
     var fin = false, timer = setTimeout(function () { finish(!!(im.complete && im.naturalWidth)); }, document.hidden ? 20000 : 8000);
@@ -1661,11 +1575,6 @@
   function bundleKey(look) { return look.wall + '|' + look.material; }
   function loadBundle(look, token, done) {
     var imgs = { photo: makeImg('photo', WP + look.wall + '.jpg'), bg: makeImg('sheet-bg', WP + look.wall + '-panel.jpg') }, keys, left, allOk = true;
-    imgs.mat = makeImg('mat-img', matSrc(look.wall, look.material));
-    imgs.field = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
-    imgs.fieldAlt = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
-    imgs.utility = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
-    imgs.utilityAlt = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
     keys = Object.keys(imgs); left = keys.length;
     keys.forEach(function (k) { whenReady(imgs[k], function (ok) {
       allOk = allOk && ok;
@@ -1679,7 +1588,6 @@
       S.bundleKey = bundle.key;
     }
     S.shown = { bg: look.bg, wall: look.wall, material: look.material, font: look.font };
-    phFields.concat(utFields).forEach(function (el) { var p = el._placement; if (p) fieldTransform(el, p.x, p.y, p.width, p.height); });
     S.wallShown = look.wall; S.wallPending = null; S.wallError = null;
   }
   function cleanPatch(patch) {
@@ -1734,7 +1642,7 @@
       if (document.hidden) { finish(loadedBundle); return; }
       window.requestAnimationFrame(function () { if (!failed && token === wallToken) finish(loadedBundle); });
     }
-    needs = target.bg === 'photo' && S.bundleKey !== bundleKey(target) && (!S.shown || S.shown.bg !== 'photo' || target.wall !== S.c.wall || materialApplies(target));
+    needs = photoBg(target) && S.bundleKey !== bundleKey(target) && (!S.shown || !photoBg(S.shown) || target.wall !== S.c.wall);
     needsFont = !fontMetrics[target.font]; imageDone = !needs; fontDone = !needsFont;
     if (!needs && !needsFont) { finish(null); return; }
     S.pending = { patch: changes, target: target, row: opts.row || (needsFont ? 'font' : S.appearanceFocus), transient: !!opts.transient, preview: false };
@@ -1753,7 +1661,8 @@
   }
   function showWall(id, done) {
     var target = lookOf(S.c), token;
-    target.bg = 'photo'; target.wall = id;
+    if (target.bg !== 'photos') target.bg = 'photo';
+    target.wall = id;
     cancelLook(); token = wallToken; S.wallError = null;
     S.pending = { patch: { wall: id }, target: target, row: 'bg', preview: true, transient: false }; S.wallPending = id;
     loadBundle(target, token, function (bundle) {
@@ -1765,8 +1674,8 @@
   }
   function restoreLook() {
     cancelLook(); S.previewBundle = null;
-    if (S.c.bg === 'photo' && committedBundle && committedBundle.key === bundleKey(S.c)) installBundle(committedBundle, S.c);
-    else if (S.c.bg !== 'photo' || S.bundleKey === bundleKey(S.c)) installBundle(null, S.c);
+    if (photoBg() && committedBundle && committedBundle.key === bundleKey(S.c)) installBundle(committedBundle, S.c);
+    else if (!photoBg() || S.bundleKey === bundleKey(S.c)) installBundle(null, S.c);
     else setLook({}, { transient: true });
   }
 
@@ -1792,7 +1701,7 @@
   function updateClock() {
     clearTimeout(clockTimer);
     if (document.hidden) return;
-    if (top().id === 'home' || isSettingsDetail(top())) renderCaption(top(), homeState(top()));
+    if (top().id === 'home' || isSettingsDetail(top())) renderMasthead();
     clockTimer = setTimeout(updateClock, 60000 - (Date.now() % 60000) + 30);
   }
   function focusStage() { try { stage.focus({ preventScroll: true }); } catch (e) { stage.focus(); } }
@@ -1805,7 +1714,8 @@
   function goScene(name) {
     FrameDevice.cancelSource();
     if (top().id === 'wallpaper') cancelWallpaperTimer(top());
-    S.stack = [S.stack[0]]; S.stack[0].f.zone = 'apps'; clearSession(); restoreLook();
+    if (top().id === 'ha') FEEDS.home.fast(false);
+    S.stack = [S.stack[0]]; S.stack[0].f.zone = 'rails'; clearSession(); restoreLook();
     if (name === 'apps') openApps();
     else if (name === 'settings') openSettings();
     else if (name === 'appearance') { openSettings(); top().f.id = 'background'; S.settingsFocus = 'background'; openAppearance('background'); }
@@ -1842,18 +1752,6 @@
     syncRotation();
   }
 
-  utilsEl.addEventListener('mouseover', function (ev) {
-    var b = ev.target, t = top(), z, i;
-    if (utilsEl.className.indexOf('quiet-utils') < 0 || t.lifted) return;
-    while (b && b !== utilsEl && !(b.getAttribute && b.getAttribute('data-z'))) b = b.parentNode;
-    if (!b || b === utilsEl || (ev.relatedTarget && b.contains(ev.relatedTarget))) return;
-    z = b.getAttribute('data-z'); i = Number(b.getAttribute('data-i'));
-    if ((t.id !== 'home' || z !== 'util') && (t.id !== 'arrange' || z !== 'ctl')) return;
-    if (t.f.zone === z && t.f.u === i) return;
-    t.f.zone = z; t.f.u = i;
-    if (z === 'util') S.lastUtil = i;
-    render();
-  });
   stage.addEventListener('click', function (ev) {
     var el = ev.target;
     while (el && el !== stage && !(el.getAttribute && el.getAttribute('data-z'))) el = el.parentNode;
@@ -1875,12 +1773,26 @@
   window.addEventListener('focus', function () { FrameDevice.cancelSource(); release(); refreshInputsOnReturn(); focusStage(); after(); updateClock(); });
   document.addEventListener('visibilitychange', function () {
     heldKeys = {};
-    if (document.hidden) { FrameDevice.cancelSource(); pauseRotation(); clearTimeout(clockTimer); }
+    if (document.hidden) { FrameDevice.cancelSource(); pauseRotation(); clearTimeout(clockTimer); if (FEEDS) FEEDS.hide(); syncAmbient(); }
     else {
       release();
-      if (S.c.bg === 'photo' && !S.pending && !S.previewBundle && (!committedBundle || S.bundleKey !== bundleKey(S.c))) setLook({}, { transient: true, startup: true });
+      if (photoBg() && !S.pending && !S.previewBundle && (!committedBundle || S.bundleKey !== bundleKey(S.c))) setLook({}, { transient: true, startup: true });
+      startFeeds();
       refreshInputsOnReturn(); after(); updateClock(); focusStage();
     }
+  });
+  /* Integrations and installed-app discovery start only once the launcher is visible, never
+     during hidden startup. Discovery runs once so older TVs resolve their own app IDs. */
+  var feedsStarted = false;
+  function startFeeds() {
+    if (document.hidden) return;
+    if (!feedsStarted) { feedsStarted = true; if (!catalog.loaded && !catalog.loading) refreshCatalog(); }
+    if (FEEDS) FEEDS.show();
+    syncAmbient();
+  }
+  if (FEEDS) FEEDS.onChange(function () {
+    var t = top();
+    if (t.id === 'home' || t.id === 'ha' || isSettingsDetail(t)) { norm(); render(); } else renderTicker();
   });
   window.addEventListener('resize', fit);
 
@@ -1900,6 +1812,10 @@
     out.wallpaperPicker = t.id === 'wallpaper' ? { candidate: WALLS[t.i].id, applied: S.c.wall, shown: S.wallShown, pending: t.previewDue || S.wallPending,
       queuedApplying: !!t.applyPending, applyPending: t.applyPending, failed: t.failedId, zone: t.f.zone, top: t.top, visible: WALL_VISIBLE, backdrop: IMG.bg.src } : null;
     out.undo = S.undo.map(function (u) { return u.label; }); out.storageOk = storageOk;
+    out.rails = railList().map(function (r) { return { id: r.id, items: r.items.map(function (it) { return it.action; }) }; });
+    out.home = { zone: S.stack[0].f.zone, rail: S.stack[0].f.r, util: S.stack[0].f.u };
+    out.feeds = FEEDS ? ['weather', 'news', 'sports', 'plex', 'home'].reduce(function (o, n) { var st = FEEDS.state(n); o[n] = { status: st.status, error: st.error }; return o; }, {}) : null;
+    out.ambient = { shown: ambient.shown, error: ambient.error };
     return JSON.parse(JSON.stringify(out));
   };
   QA.where = function () {
@@ -1910,13 +1826,12 @@
   QA.ready = function () { return fontsReady && !S.pending && !!S.shown && S.shown.bg === S.c.bg && S.shown.wall === S.c.wall && S.shown.font === S.c.font; };
   QA.nav = function () { var keys = arguments.length === 1 && Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments); keys.forEach(function (key) { if (!NAV[key]) throw new Error('Unknown key'); press(NAV[key]); }); return QA.state(); };
   QA.look = function (patch) { setLook(patch, {}); return QA.state(); };
-  QA.scene = function (name) { if (['home', 'apps', 'settings', 'appearance', 'editor'].indexOf(name) < 0) throw new Error('Unknown view'); goScene(name); return QA.state(); };
+  QA.scene = function (name) { if (name === 'ha') { goScene('home'); openHa(); after(); return QA.state(); } if (['home', 'apps', 'settings', 'appearance', 'editor'].indexOf(name) < 0) throw new Error('Unknown view'); goScene(name); return QA.state(); };
   QA.activate = function (action) { return activate(action) ? QA.state() : null; };
   QA.actions = function () { var view = isSettingsDetail(top()) ? appearanceEl : sheetEl.hidden ? homeEl : sheetEl; return Array.prototype.filter.call(view.querySelectorAll('[data-action]'), renderedAction).map(function (el) { return el.getAttribute('data-action'); }); };
 
   /* ---------- Start ---------- */
-  cueL.innerHTML = icon('left'); cueR.innerHTML = icon('right');
   initialise();
   setLook({}, { transient: true, startup: true });
-  norm(); render(); fit(); focusStage(); updateClock(); syncRotation();
+  norm(); render(); fit(); focusStage(); updateClock(); syncRotation(); startFeeds();
 })();

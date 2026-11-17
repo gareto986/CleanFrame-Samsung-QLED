@@ -2,6 +2,8 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { openPreview, root } from './browser.mjs';
+import { CONFIG, routeIntegrations } from './fixtures/integrations.mjs';
+const CONFIG_PLEX = CONFIG.plex.appId;
 
 const KEY = 'cleanframe.home.v1';
 const PRIMARY = ['stremio', 'netflix', 'disneyplus', 'youtube', 'appletv', 'primevideo', 'abciview', 'sbs', 'applemusic'];
@@ -20,7 +22,7 @@ const CATALOG = IDS.map((id, i) => ({ id, name: NAMES[i], show: true, iconPath: 
 const walls = JSON.parse(readFileSync(root + 'app/assets/wallpapers/SOURCES.json', 'utf8'));
 const out = root + '.local/qa/';
 mkdirSync(out, { recursive: true });
-const sourceFiles = ['app/main.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/config.xml', 'app/assets/wallpapers/SOURCES.json', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js', 'app/assets/icons/metrics.js'];
+const sourceFiles = ['app/main.js', 'app/integrations.js', 'app/assets/integrations.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/config.xml', 'app/assets/wallpapers/SOURCES.json', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js', 'app/assets/icons/metrics.js'];
 const hashes = () => Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(root + f)).digest('hex')]));
 const report = { scope: 'Production UI in Chromium; mock public Tizen API only; no TV contacted.', sourceBefore: hashes(), checks: [], failures: [], pageErrors: [], expectedNetworkFailures: [] };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -198,7 +200,7 @@ const wallpaperSaved = () => current.evaluate(() => {
     backdrop: { src: bg.currentSrc || bg.src, opacity: bgStyle.opacity, filter: bgStyle.filter, veil: veilStyle.background, veilOpacity: veilStyle.opacity } };
 });
 const wallpaperApplied = () => current.locator('.wallpaper-choice[aria-checked="true"]').evaluateAll(elements => elements.map(e => e.getAttribute('data-action')));
-const wallpaperBundle = () => current.evaluate(() => Object.fromEntries(['photo', 'matImg', 'phFieldImg', 'phFieldImgAlt', 'utFieldImg', 'utFieldImgAlt'].map(id => [id, document.getElementById(id).currentSrc || document.getElementById(id).src])));
+const wallpaperBundle = () => current.evaluate(() => Object.fromEntries(['photo'].map(id => [id, document.getElementById(id).currentSrc || document.getElementById(id).src])));
 const previewFrame = () => current.evaluate(() => {
   const e = document.getElementById('scene'), r = e.getBoundingClientRect(), css = getComputedStyle(e);
   return { x: r.x, y: r.y, width: r.width, height: r.height, radius: css.borderRadius, transform: css.transform };
@@ -266,8 +268,8 @@ try {
   await run('Font recovery invalidates fallback measurements', async () => {
     const seed = baseline({ dock: ['sbs', 'netflix'], lastApp: 'sbs', look: { bg: 'photo', layout: 'list', apps: 'both', font: 'manrope', controls: 'both', focus: 'glass', material: 'soft' } });
     const geometry = () => current.evaluate(() => ({
-      plate: document.querySelector('#phScene > .ph-plate.is-current').style.width,
-      names: [...document.querySelectorAll('.ph-name')].map(e => ({ text: e.textContent, size: e.style.fontSize, top: e.style.top }))
+      focus: document.querySelector('.rail-apps .rt.is-focus').style.transform,
+      names: [...document.querySelectorAll('.rail-apps .rt-name')].map(e => ({ text: e.textContent, width: Math.round(e.getBoundingClientRect().width), top: Math.round(e.getBoundingClientRect().top) }))
     }));
     await page({ seed });
     const expected = await geometry();
@@ -285,7 +287,7 @@ try {
   await run('Hidden boot installs a complete wallpaper without animation frames', async () => {
     await page({ initiallyHidden: true, pauseHiddenFrames: true, rejectDecode: true });
     const before = await stored();
-    check('Hidden startup settles with every wallpaper image loaded', await current.evaluate(() => document.hidden && ['photo', 'matImg', 'phFieldImg', 'utFieldImg'].every(id => {
+    check('Hidden startup settles with every wallpaper image loaded', await current.evaluate(() => document.hidden && ['photo', 'sheetBg'].every(id => {
       const image = document.getElementById(id); return image.complete && image.naturalWidth > 0;
     })));
     await current.evaluate(() => window.__setHidden(false)); await ready();
@@ -297,8 +299,8 @@ try {
   await run('Hidden boot retries failed assets on becoming visible', async () => {
     let failImages = true;
     await page({ initiallyHidden: true, pauseHiddenFrames: true, waitReady: false, settleNetwork: false }, async p => {
-      p.__expectedFailures.push('/assets/materials/');
-      await p.route('**/assets/materials/*', route => failImages ? route.abort('failed') : route.continue());
+      p.__expectedFailures.push('-panel.jpg');
+      await p.route('**/assets/wallpapers/*-panel.jpg', route => failImages ? route.abort('failed') : route.continue());
     });
     await current.waitForFunction(() => window.ShoreQA && !ShoreQA.state().pending && !ShoreQA.ready());
     const before = await stored();
@@ -318,72 +320,57 @@ try {
       await route.fulfill({ response, body: (await response.text()).replace(/([;{])inset:0(?=[;}])/g, '$1') });
     }));
     for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
-      await current.setViewportSize(viewport);
-      for (const layout of ['dock', 'list']) {
-        await look({ layout, focus: 'glass' }); await scene('home');
-        const labels = await current.locator(layout === 'dock' ? '.tile-content' : '.ph-name').evaluateAll(elements => elements.filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().width));
-        check(layout + ' labels retain width at ' + viewport.width, labels.length > 0 && labels.every(width => width > 0), labels);
-        await nav(layout === 'dock' ? 'up' : 'right');
-        await current.waitForTimeout(240);
-        check('Utility focus and rounded lens align at ' + viewport.width + ' in ' + layout, await current.evaluate(() => {
-          const button = document.querySelector('.u.is-focus'), lens = document.querySelector('.ut-lens.is-current');
-          return ShoreQA.where().focusCount === 1 && button && lens && Math.abs(button.getBoundingClientRect().top - lens.getBoundingClientRect().top) < 4;
-        }));
-        await current.screenshot({ path: out + 'compat-' + layout + '-' + viewport.width + '.png' });
-        await group('background');
-        check('Appearance keeps full stage bounds at ' + viewport.width + ' in ' + layout, await current.locator('.appearance').evaluate(e => {
-          const r = e.getBoundingClientRect(), stage = document.getElementById('stage').getBoundingClientRect();
-          return Math.abs(r.width - stage.width) < 1 && Math.abs(r.height - stage.height) < 1;
-        }));
-        await library();
-        check('All apps content keeps its width at ' + viewport.width + ' in ' + layout, await current.locator('.gt .panel-content').evaluateAll(elements => elements.length > 0 && elements.every(e => e.getBoundingClientRect().width > 0)));
-      }
+      await current.setViewportSize(viewport); await scene('home');
+      const labels = await current.locator('.rail-apps .rt-name').evaluateAll(elements => elements.filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().width));
+      check('Rail labels retain width at ' + viewport.width, labels.length > 0 && labels.every(width => width > 0), labels);
+      await nav('up');
+      check('Utility focus is a single solid control at ' + viewport.width, await current.evaluate(() => {
+        const button = document.querySelector('#utils .u.is-focus');
+        return ShoreQA.where().focusCount === 1 && button && getComputedStyle(button).backgroundColor !== 'rgba(0, 0, 0, 0)';
+      }));
+      await current.screenshot({ path: out + 'compat-rails-' + viewport.width + '.png' });
+      await group('background');
+      check('Appearance keeps full stage bounds at ' + viewport.width, await current.locator('.appearance').evaluate(e => {
+        const r = e.getBoundingClientRect(), stage = document.getElementById('stage').getBoundingClientRect();
+        return Math.abs(r.width - stage.width) < 1 && Math.abs(r.height - stage.height) < 1;
+      }));
+      await library();
+      check('All apps content keeps its width at ' + viewport.width, await current.locator('.gt .panel-content').evaluateAll(elements => elements.length > 0 && elements.every(e => e.getBoundingClientRect().width > 0)));
     }
   });
   await run('Utility control geometry', async () => {
     await page();
     for (const width of [1920, 1280]) {
-      await current.setViewportSize({ width, height: width * 9 / 16 });
-      for (const layout of ['dock', 'list']) for (const controls of ['icons', 'both', 'text']) {
-        await look({ bg: 'photo', layout, controls, focus: 'glass', font: 'manrope' }); await scene('home');
-        if ((await call('where')).zone === 'util') await nav('back');
-        await nav(layout === 'dock' ? 'up' : 'right');
-        await nav(...Array(3).fill(layout === 'dock' ? 'left' : 'up'));
-        await current.waitForTimeout(180);
-        const spacing = await current.evaluate(({ layout, controls }) => {
-          const scale = document.getElementById('stage').getBoundingClientRect().width / 1920;
-          return [...document.querySelectorAll('#utils .u')].map(button => {
-            const content = button.querySelector('.u-content');
-            const children = [...content.children].filter(e => getComputedStyle(e).display !== 'none');
-            const visibleWidth = children.reduce((sum, e) => sum + e.getBoundingClientRect().width / scale, 0);
-            const gap = controls !== 'both' ? 0 : layout === 'dock' ? 10 : button.dataset.action === 'util.settings' ? 18.9 : 17.9;
-            return { action: button.dataset.action, children: children.length, extraWidth: content.getBoundingClientRect().width / scale - visibleWidth, gap };
-          });
-        }, { layout, controls });
-        check(layout + '/' + controls + ' uses spacing between visible children at ' + width,
-          spacing.length === 3 && spacing.every(s => s.children === (controls === 'both' ? 2 : 1) && Math.abs(s.extraWidth - s.gap) < .5), spacing);
-        const focused = [];
-        for (let i = 0; i < 3; i++) {
-          if (i) await nav(layout === 'dock' ? 'right' : 'down');
-          focused.push(await current.evaluate(() => {
-            const button = document.querySelector('#utils .u.is-focus'), lens = document.querySelector('.ut-lens.is-current');
-            if (!button || !lens || ShoreQA.where().focusCount !== 1) return false;
-            const bounds = lens.getBoundingClientRect();
-            const content = [...button.querySelector('.u-content').children].filter(e => getComputedStyle(e).display !== 'none');
-            const caption = document.querySelector('.util-focus-label.is-on');
-            if (caption && ShoreQA.state().look.layout === 'list') content.push(caption);
-            return content.every(e => { const r = e.getBoundingClientRect(); return r.left >= bounds.left - 1 && r.right <= bounds.right + 1 && r.top >= bounds.top - 1 && r.bottom <= bounds.bottom + 1; });
-          }));
-        }
-        check(layout + '/' + controls + ' keeps each focused control inside its lens at ' + width, focused.every(Boolean), focused);
+      await current.setViewportSize({ width, height: width * 9 / 16 }); await scene('home');
+      await nav('up', 'left', 'left', 'left');
+      const spacing = await current.evaluate(() => {
+        const scale = document.getElementById('stage').getBoundingClientRect().width / 1920;
+        return [...document.querySelectorAll('#utils .u')].map(button => {
+          const children = [...button.children];
+          return { action: button.dataset.action, children: children.length, gap: (children[1].getBoundingClientRect().left - children[0].getBoundingClientRect().right) / scale };
+        });
+      });
+      check('Home controls space icon and label at ' + width, same(spacing.map(s => s.action), ['util.inputs', 'util.apps', 'util.settings']) && spacing.every(s => s.children === 2 && Math.abs(s.gap - 12) < .5), spacing);
+      const focused = [];
+      for (let i = 0; i < 3; i++) {
+        if (i) await nav('right');
+        focused.push(await current.evaluate(() => {
+          const button = document.querySelector('#utils .u.is-focus');
+          if (!button || ShoreQA.where().focusCount !== 1) return false;
+          const b = button.getBoundingClientRect();
+          return [...button.children].every(e => { const r = e.getBoundingClientRect(); return r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1; });
+        }));
       }
+      check('Each focused control keeps its content inside its pill at ' + width, focused.every(Boolean), focused);
+      await nav('down');
+      check('Down returns from the controls to the selected app at ' + width, (await state()).home.zone === 'rails' && (await state()).focusAction === 'home.app.' + (await state()).selected);
     }
   });
   await run('Panel spacing geometry', async () => {
     await page();
     for (const width of [1920, 1280]) {
       await current.setViewportSize({ width, height: width * 9 / 16 });
-      await look({ layout: 'dock', focus: 'glass' }); await editor();
+      await editor();
       const divider = await current.locator('.ed-order-break.is-on').evaluate(e => {
         const scale = document.getElementById('stage').getBoundingClientRect().width / 1920;
         const text = document.createRange(); text.selectNodeContents(e);
@@ -402,7 +389,7 @@ try {
         const scale = document.getElementById('stage').getBoundingClientRect().width / 1920;
         return elements.map(e => (e.querySelector('.ico').getBoundingClientRect().left - e.querySelector('.settings-group-copy').getBoundingClientRect().right) / scale);
       });
-      check('Settings group arrows stay separate from their copy at ' + width, groups.length === 6 && groups.every(gap => gap >= 31.5), groups);
+      check('Settings group arrows stay separate from their copy at ' + width, groups.length === 4 && groups.every(gap => gap >= 31.5), groups);
       await wallpaper();
       const caption = await current.locator('.wallpaper-preview-name').evaluate(e => {
         const scale = document.getElementById('stage').getBoundingClientRect().width / 1920;
@@ -413,8 +400,8 @@ try {
   });
   await run('HDMI input chooser and recovery', async () => {
     await page();
-    for (const width of [1920, 1280]) for (const layout of ['dock', 'list']) {
-      await current.setViewportSize({ width, height: width * 9 / 16 }); await look({ layout });
+    for (const width of [1920, 1280]) for (const layout of ['rails']) {
+      await current.setViewportSize({ width, height: width * 9 / 16 });
       await group('samsung'); await act('samsung.inputs');
       await current.waitForSelector('[data-action="input.1"]');
       const entries = await current.locator('.section-inputs .setting-choice').allTextContents();
@@ -459,20 +446,21 @@ try {
     check('Consumer catalogue excludes services, self and duplicate YouTube', names.length === 12 && names.filter(n => n === 'YouTube').length === 1 && !names.includes('CleanFrame') && !names.includes('Background worker'), names);
     check('Installed names stay text, including HTML punctuation', names.includes(UNSAFE_NAME) && !(await current.evaluate(() => window.__catalogXss)));
     check('Exploration fixtures do not appear', !names.includes('Plex') && !names.includes('Jellyfin'));
-    await act('apps.open.' + SPOTIFY); await current.waitForFunction(() => __tv.calls.length > 0);
-    check('Extra-brand app launches native ID', (await current.evaluate(() => __tv.calls.at(-1))).id === SPOTIFY);
+    await act('apps.open.spotify'); await current.waitForFunction(() => __tv.calls.length > 0);
+    check('Known brand launches the native ID the TV reported', (await current.evaluate(() => __tv.calls.at(-1))).id === SPOTIFY);
     await current.evaluate(() => window.dispatchEvent(new Event('focus')));
     await scene('home'); await act('home.app.netflix'); await current.waitForFunction(() => __tv.calls.length === 2);
     check('Primary app keeps verified target', (await current.evaluate(() => __tv.calls.at(-1))).id === IDS[1]);
     await current.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await act('util.art'); await current.waitForFunction(() => __tv.calls.length === 3);
-    const art = await current.evaluate(() => __tv.calls.at(-1));
-    check('Art Mode uses app-control with fullscreen request', art.method === 'launchAppControl' && art.id === 'org.tizen.art-app' && art.control.data.some(d => d.key === 'mode' && d.value[0] === 'fullscreen'), art);
+    await act('util.inputs'); await current.waitForSelector('[data-action="input.1"]');
+    check('Inputs opens directly from Home and launches nothing by itself', (await state()).settingsGroup === 'inputs' && await current.evaluate(() => __tv.calls.length === 2));
+    await nav('back');
+    check('Inputs Back returns to Home controls', (await state()).view === 'home' && (await state()).focusAction === 'util.inputs');
     await current.evaluate(() => window.dispatchEvent(new Event('focus'))); await group('samsung'); await act('samsung.home');
-    await current.waitForFunction(() => __tv.calls.length === 4);
+    await current.waitForFunction(() => __tv.calls.length === 3);
     check('Samsung escape keeps CSFS target', (await current.evaluate(() => __tv.calls.at(-1))).id === 'com.samsung.tv.csfs');
     await current.evaluate(() => window.dispatchEvent(new Event('focus'))); await group('samsung'); await act('samsung.settings');
-    await current.waitForFunction(() => __tv.calls.length === 5);
+    await current.waitForFunction(() => __tv.calls.length === 4);
     check('TV settings keeps installed target', (await current.evaluate(() => __tv.calls.at(-1))).id === 'com.samsung.tv.coba.setting');
     await current.evaluate(() => { window.dispatchEvent(new Event('focus')); __tv.launchFailure = true; });
     await scene('home'); await act('home.app.netflix'); await current.waitForFunction(() => ShoreQA.where().view === 'message');
@@ -559,34 +547,33 @@ try {
     await current.waitForFunction(() => !ShoreQA.state().pending);
     check('Failed appearance write keeps display and preferences', (await state()).look.bg === old.look.bg && same(await stored(), oldStored));
   });
-  await run('Appearance axes, fonts, scaling and matching materials', async () => {
+  await run('Appearance, fonts, scaling and retained legacy values', async () => {
     await page();
-    for (const bg of ['dark', 'light', 'photo']) for (const layout of ['list', 'dock']) for (const focus of ['type', 'glass']) {
-      await look({ bg, layout, focus }); const s = await state();
-      check('Independent axes ' + [bg, layout, focus].join('/'), s.look.bg === bg && s.look.layout === layout && s.look.focus === focus && s.shown.bg === bg, s.look);
+    for (const bg of ['dark', 'light', 'photo', 'photos']) {
+      await look({ bg }); const s = await state();
+      check('Background ' + bg + ' applies and renders', s.look.bg === bg && s.shown.bg === bg && await current.evaluate(v => document.getElementById('stage').classList.contains('bg-' + v), bg), s.look);
     }
-    for (const axis of ['apps', 'controls']) for (const value of ['icons', 'both', 'text']) { await look({ [axis]: value }); check(axis + ' ' + value + ' persists', (await state()).look[axis] === value); }
-    await look({ bg: 'photo', layout: 'dock', focus: 'glass', apps: 'both', controls: 'icons' });
-    for (const material of ['soft', 'frost', 'tint']) { await look({ material }); check(material + ' matches displayed bundle', (await state()).shown.material === material && (await state()).look.material === material); }
+    check('My photos without a configured album keeps the wallpaper', await current.evaluate(() => getComputedStyle(document.getElementById('bg')).display !== 'none' && document.getElementById('photo').naturalWidth > 0 && !ShoreQA.state().ambient.shown));
+    await look({ bg: 'photo', layout: 'list', apps: 'text', controls: 'icons', focus: 'type', material: 'tint' });
+    const legacy = (await state()).look;
+    check('Earlier layout and material values stay saved for older builds', legacy.layout === 'list' && legacy.apps === 'text' && legacy.controls === 'icons' && legacy.focus === 'type' && legacy.material === 'tint', legacy);
+    check('Earlier layout values do not change the rails Home', (await state()).rails[0].id === 'apps' && await current.locator('.rail-apps .rt').count() === 9);
     const fonts = (await state()).fonts.available; check('Font catalogue includes default', fonts.includes('manrope'));
     for (const font of fonts) {
       await look({ font }); check('Font ' + font + ' settles', (await state()).look.font === font && (await state()).shown.font === font);
       if (font === 'newsreader') {
-        for (const layout of ['list', 'dock']) for (const controls of ['icons', 'both', 'text']) {
-          await look({ layout, controls });
-          const wrong = await current.evaluate(() => [...document.querySelectorAll('.home .clock, .home .u, .home .u-label, .home .ph-name, .home .tile .label, .home .app-focus-name, .home .util-focus-label, .home .wall-keep')].filter(e => !/Newsreader/.test(getComputedStyle(e).fontFamily)).map(e => ({ cls: e.className, font: getComputedStyle(e).fontFamily })));
-          check('Newsreader covers Home text ' + layout + '/' + controls, wrong.length === 0, wrong);
-        }
+        const wrong = await current.evaluate(() => [...document.querySelectorAll('.home .clock, .home .mh-date, .home .u, .home .u-label, .home .rt-name, .home .rail-label')].filter(e => !/Newsreader/.test(getComputedStyle(e).fontFamily)).map(e => ({ cls: e.className, font: getComputedStyle(e).fontFamily })));
+        check('Newsreader covers Home text', wrong.length === 0, wrong);
       }
     }
     await look({ font: 'manrope' });
     for (const wall of walls) { await look({ wall: wall.id }); check('Wallpaper ' + wall.id + ' has matching bundle', (await state()).shown.wall === wall.id && (await state()).wallpaper === wall.id); }
-    for (const layout of ['list', 'dock']) for (const width of [1920, 1280]) {
-      await current.setViewportSize({ width, height: width * 9 / 16 }); await look({ layout });
+    for (const width of [1920, 1280]) {
+      await current.setViewportSize({ width, height: width * 9 / 16 });
       await current.waitForFunction(w => Math.abs(document.getElementById('stage').getBoundingClientRect().width - w) < 1, width);
       const g = await current.evaluate(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height, focus: ShoreQA.where().focusCount }; });
-      check(layout + ' fits ' + width + ' with one focus', Math.abs(g.x) < 1 && Math.abs(g.y) < 1 && Math.abs(g.width - width) < 1 && Math.abs(g.height - width * 9 / 16) < 1 && g.focus === 1, g);
-      await current.screenshot({ path: out + 'production-' + layout + '-' + width + '.jpg', quality: 90 });
+      check('Home fits ' + width + ' with one focus', Math.abs(g.x) < 1 && Math.abs(g.y) < 1 && Math.abs(g.width - width) < 1 && Math.abs(g.height - width * 9 / 16) < 1 && g.focus === 1, g);
+      await current.screenshot({ path: out + 'production-rails-' + width + '.jpg', quality: 90 });
     }
     check('No live blur/backdrop filters', (await noLiveFilters()).length === 0, await noLiveFilters());
     check('No prototype lab controls in production', await current.evaluate(() => !document.querySelector('[data-lab], #lab, #side') && !document.querySelector('script[src*="prototype"]')));
@@ -594,13 +581,12 @@ try {
   });
   await run('Settings overview and visible choices', async () => {
     await page(); await scene('settings');
-    const expected = ['settings.group.background', 'settings.group.layout', 'settings.group.typography', 'settings.group.focus', 'settings.editor', 'settings.group.samsung'];
-    check('Overview has all six settings groups', same((await call('actions')).filter(a => expected.includes(a)).sort(), expected.slice().sort()));
+    const expected = ['settings.group.background', 'settings.group.typography', 'settings.editor', 'settings.group.samsung'];
+    const overview = (await call('actions')).filter(a => a.startsWith('settings.'));
+    check('Overview has the four settings groups and no layout or focus groups', same(overview.slice().sort(), expected.slice().sort()), overview);
     const specs = {
       background: { bg: ['dark', 'light', 'photo'] },
-      layout: { layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], controls: ['icons', 'both', 'text'] },
-      typography: { font: (await state()).fonts.available },
-      focus: { focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] }
+      typography: { font: (await state()).fonts.available }
     };
     for (const [name, axes] of Object.entries(specs)) {
       await group(name);
@@ -628,7 +614,7 @@ try {
   });
   await run('Settings focus never changes the applied Home', async () => {
     await page();
-    for (const name of ['background', 'layout', 'typography', 'focus', 'samsung']) {
+    for (const name of ['background', 'typography', 'samsung']) {
       await group(name); const before = await settingsSnapshot();
       const visited = new Set();
       for (const direction of ['right', 'right', 'down', 'left', 'left', 'down', 'right', 'right', 'down', 'left', 'up', 'up', 'up', 'right']) {
@@ -653,26 +639,21 @@ try {
     await nav('back'); check('Unconfirmed Rotation choice is cancelled', same(await settingsSnapshot(), before) && (await state()).settingsGroup === 'background');
   });
   await run('Settings on-screen Back preserves choice focus', async () => {
-    await page(); await group('layout'); const before = await settingsSnapshot();
+    await page(); await group('background'); const before = await settingsSnapshot();
     const candidate = await unselectedChoice();
     await act('settings.back');
-    check('On-screen Back returns to the matching overview category', (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.layout');
+    check('On-screen Back returns to the matching overview category', (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.background');
     check('On-screen Back keeps unconfirmed choice unapplied', same(await settingsSnapshot(), before));
-    await act('settings.group.layout');
+    await act('settings.group.background');
     check('Reopening restores the last real choice after on-screen Back', (await state()).focusAction === candidate.action, { expected: candidate.action, actual: (await state()).focusAction });
-    await nav('back'); await act('settings.group.layout');
+    await nav('back'); await act('settings.group.background');
     check('Physical Back also preserves the last real choice', (await state()).focusAction === candidate.action);
   });
   await run('Settings OK applies explicit choices atomically', async () => {
     await page();
     const specs = [
       ['background', 'bg', ['dark', 'light', 'photo']],
-      ['layout', 'layout', ['list', 'dock']],
-      ['layout', 'apps', ['icons', 'text', 'both']],
-      ['layout', 'controls', ['text', 'both', 'icons']],
-      ['typography', 'font', (await state()).fonts.available],
-      ['focus', 'focus', ['type', 'glass']],
-      ['focus', 'material', ['frost', 'tint', 'soft']]
+      ['typography', 'font', (await state()).fonts.available]
     ];
     for (const [name, axis, values] of specs) {
       await group(name);
@@ -697,32 +678,14 @@ try {
       const before = await settingsSnapshot(); await act('rotation.' + value);
       check('Rotation OK applies ' + value + ' once', (await state()).mode === value && (await stored()).mode === value && (await state()).writes === before.writes + 1 && (await radios()).some(r => r.action === 'rotation.' + value && r.checked === 'true'));
     }
-    await group('layout'); const before = await settingsSnapshot(), candidate = await unselectedChoice();
+    await group('background'); await nav('up', 'up', 'up'); const before = await settingsSnapshot(), candidate = await unselectedChoice();
     const [, axis, value] = candidate.action.split('.');
     await current.keyboard.down('Enter'); await current.keyboard.down('Enter'); await ready();
     check('Held physical OK applies the focused choice once', (await state()).committed[axis] === value && (await state()).writes === before.writes + 1);
     await current.keyboard.up('Enter');
     await current.keyboard.down('Escape'); await current.keyboard.down('Escape');
-    check('Held physical Back closes one settings layer', (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.layout');
+    check('Held physical Back closes one settings layer', (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.background');
     await current.keyboard.up('Escape');
-  });
-  await run('Settings inactive Material retains its choice', async () => {
-    await page(); await look({ material: 'tint' });
-    for (const patch of [{ bg: 'dark' }, { bg: 'light' }, { bg: 'photo', layout: 'list', focus: 'type' }]) {
-      await look(patch); await group('focus'); const before = await settingsSnapshot();
-      const materials = (await radios()).filter(r => r.action.startsWith('choice.material.'));
-      check('Material stays visible but inactive for ' + JSON.stringify(patch), materials.length === 3 && materials.every(r => r.disabled) && materials.some(r => r.action === 'choice.material.tint' && r.checked === 'true'), materials);
-      const focusBefore = (await state()).focusAction;
-      await current.locator('[data-action="choice.material.frost"]').click({ force: true });
-      check('Inactive Material ignores pointer focus and application', same(await settingsSnapshot(), before) && (await state()).focusAction === focusBefore);
-      await walkEnabledChoices();
-      check('Remote navigation skips inactive Material', same(await settingsSnapshot(), before));
-      const reason = await current.locator('.setting-reason:visible').allTextContents();
-      check('Inactive Material has a visible explanation', reason.some(text => /material/i.test(text) && text.length > 20), reason);
-    }
-    await look({ bg: 'photo', layout: 'dock', focus: 'glass' }); await group('focus');
-    const materials = (await radios()).filter(r => r.action.startsWith('choice.material.'));
-    check('Applicable Material restores the remembered selection', materials.every(r => !r.disabled) && materials.some(r => r.action === 'choice.material.tint' && r.checked === 'true'));
   });
   await run('Settings inactive photo tools retain wallpaper preferences', async () => {
     await page();
@@ -741,13 +704,7 @@ try {
     }
   });
   await run('Settings normalises remembered inactive focus', async () => {
-    await page(); await group('focus'); await choice('material', 'tint'); await ready();
-    await nav('back'); await act('settings.group.background'); await choice('bg', 'dark'); await ready();
-    await nav('back'); await act('settings.group.focus');
-    const focus = await focusedChoice();
-    check('Inactive remembered Material returns to an enabled focus choice', focus && !focus.disabled && focus.action.startsWith('choice.focus.'), focus);
-    check('Changing Background preserves remembered Material', (await state()).look.material === 'tint');
-    await look({ bg: 'photo' }); await group('background'); await act('background.rotation'); await act('rotation.fixed');
+    await page(); await look({ bg: 'photo' }); await group('background'); await act('background.rotation'); await act('rotation.fixed');
     await look({ bg: 'dark' }); const before = await settingsSnapshot();
     check('All-inactive Rotation restores its enabled Back action', (await state()).focusAction === 'settings.back');
     const visited = await walkEnabledChoices();
@@ -759,16 +716,16 @@ try {
     check('Rotation Back skips its now-inactive Background row', (await state()).settingsGroup === 'background' && returned && !returned.disabled && returned.action.startsWith('choice.bg.'), returned);
   });
   await run('Settings Back cancels pending assets and late callbacks', async () => {
-    await page(); await group('focus'); const before = await settingsSnapshot();
-    const held = [], pattern = '**/*-field-frost.jpg';
+    await page(); await look({ bg: 'dark', wall: walls[1].id }); await group('background'); const before = await settingsSnapshot();
+    const held = [], pattern = '**/wallpapers/' + walls[1].id + '.jpg';
     let releaseImages;
     const blocked = new Promise(resolve => { releaseImages = resolve; });
     await current.route(pattern, async route => { held.push(route.request().url()); await blocked; await route.continue(); });
     try {
-      await choice('material', 'frost'); await current.waitForFunction(() => !!ShoreQA.state().pending);
+      await choice('bg', 'photo'); await current.waitForFunction(() => !!ShoreQA.state().pending);
       check('Pending choice keeps the committed Home and storage', same(await settingsSnapshot(), before));
       await nav('back'); await ready();
-      check('Back cancels pending choice and restores category focus', same(await settingsSnapshot(), before) && (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.focus');
+      check('Back cancels pending choice and restores category focus', same(await settingsSnapshot(), before) && (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.background');
       releaseImages();
       await current.waitForLoadState('networkidle');
       check('Late image completion cannot commit a cancelled choice', held.length > 0 && same(await settingsSnapshot(), before) && !(await state()).pending);
@@ -792,14 +749,15 @@ try {
     } finally { releaseFont(); await current.unroute(pattern); }
   });
   await run('Settings choice failure and explicit retry', async () => {
-    await page(); await group('focus'); const original = await settingsSnapshot();
-    current.__expectedFailures.push('-field-frost.jpg');
-    await current.route('**/*-field-frost.jpg', route => route.abort('failed'));
-    await choice('material', 'frost'); await current.waitForFunction(() => !ShoreQA.state().pending);
-    check('Failed image keeps the applied radio and Home', same(await settingsSnapshot(), original) && (await radios()).some(r => r.action === 'choice.material.soft' && r.checked === 'true'));
+    await page(); await look({ bg: 'dark', wall: walls[1].id }); await group('background'); const original = await settingsSnapshot();
+    const failing = '**/wallpapers/' + walls[1].id + '.jpg';
+    current.__expectedFailures.push('/wallpapers/' + walls[1].id + '.jpg');
+    await current.route(failing, route => route.abort('failed'));
+    await choice('bg', 'photo'); await current.waitForFunction(() => !ShoreQA.state().pending);
+    check('Failed image keeps the applied radio and Home', same(await settingsSnapshot(), original) && (await radios()).some(r => r.action === 'choice.bg.dark' && r.checked === 'true'));
     check('Failed explicit choice exposes Retry', (await call('actions')).includes('settings.retry'));
-    await current.unroute('**/*-field-frost.jpg'); await act('settings.retry'); await ready();
-    check('Retry applies the same failed choice', (await state()).look.material === 'frost' && (await state()).shown.material === 'frost' && (await state()).writes === original.writes + 1);
+    await current.unroute(failing); await act('settings.retry'); await ready();
+    check('Retry applies the same failed choice', (await state()).look.bg === 'photo' && (await state()).shown.bg === 'photo' && (await state()).writes === original.writes + 1);
     await group('background'); const before = await settingsSnapshot();
     await current.evaluate(() => { __failWrites = true; }); await choice('bg', 'light');
     await current.waitForFunction(() => !ShoreQA.state().pending);
@@ -813,7 +771,7 @@ try {
     for (const width of [1920, 1280]) {
       await current.setViewportSize({ width, height: width * 9 / 16 });
       await current.waitForFunction(w => Math.abs(document.getElementById('stage').getBoundingClientRect().width - w) < 1, width);
-      for (const name of ['background', 'layout', 'typography', 'focus', 'samsung', 'rotation']) {
+      for (const name of ['background', 'typography', 'samsung', 'rotation']) {
         await group(name === 'rotation' ? 'background' : name);
         if (name === 'rotation') await act('background.rotation');
         const geometry = await current.evaluate(() => {
@@ -1064,11 +1022,11 @@ try {
     check('Flat background retains photo without rotation', (await state()).wallpaper === flat);
     await look({ bg: 'photo', layout: 'list' }); const photoList = (await state()).wallpaper;
     await current.waitForFunction(id => ShoreQA.state().wallpaper !== id, photoList, { timeout: 4000 });
-    check('Photo List rotates too', (await state()).look.layout === 'list');
+    check('A saved earlier layout value does not stop rotation', (await state()).look.layout === 'list');
     await current.evaluate(() => { __setHidden(true); document.getElementById('stage').blur(); __setHidden(false); window.dispatchEvent(new Event('focus')); });
-    const focus = (await state()).focusAction; await current.keyboard.press('ArrowDown');
+    const focus = (await state()).focusAction; await current.keyboard.press('ArrowRight');
     check('Warm return restores remote focus', (await state()).focusAction !== focus && (await call('where')).focusCount === 1);
-    const clock = await current.locator('#caption .clock').textContent();
+    const clock = await current.locator('#masthead .clock').textContent();
     check('Live 12-hour clock has no AM/PM', /^\s*\d{1,2}:\d{2}\s*$/.test(clock), clock);
   });
   await run('Open rotation and browser fallback', async () => {
@@ -1082,6 +1040,76 @@ try {
     check('Browser launch honestly requires TV', /TV/.test(await current.locator('#stage').innerText()));
     await nav('back'); await library();
     check('Browser All Apps has no installed fixtures', /TV/.test(await current.locator('#stage').innerText()) && !(await current.locator('[data-action^="apps.open."]').count()));
+  });
+  await run('Home rails and integrations', async () => {
+    const log = [], feedsReady = () => current.waitForFunction(() => { const f = ShoreQA.state().feeds; return ['weather', 'news', 'sports', 'plex', 'home'].every(n => f[n].status === 'ready'); }, null, { timeout: 15000 });
+    await page({ initiallyHidden: true, pauseHiddenFrames: true }, p => routeIntegrations(p, { log }));
+    await current.waitForTimeout(300);
+    check('Hidden startup makes no integration or discovery requests', log.length === 0 && await current.evaluate(() => __tv.catalogCalls === 0), log);
+    await current.evaluate(() => window.__setHidden(false)); await feedsReady();
+    check('Becoming visible starts each integration and one app discovery', ['api.open-meteo.com', 'news.example', 'site.api.espn.com', 'plex.example', 'ha.example'].every(h => log.some(l => l.host === h)) && await current.evaluate(() => __tv.catalogCalls === 1), [...new Set(log.map(l => l.host))]);
+    check('Home Assistant uses the configured bearer token', log.filter(l => l.host === 'ha.example').every(l => l.headers.authorization === 'Bearer test-token'));
+    let s = await state();
+    check('Rails appear in order: apps, Plex, Home, sports, weather', same(s.rails.map(r => r.id), ['apps', 'plex', 'home', 'sports', 'weather']), s.rails);
+    check('Plex lists Continue first, then recently added, then Open Plex', s.rails[1].items.length === 6 && s.rails[1].items.at(-1) === 'plex.app' && /Continue/.test(await current.locator('.rail-plex .rt').first().innerText()));
+    check('Masthead shows the date and current weather', /°/.test(await current.locator('#masthead .mh-weather').innerText()) && (await current.locator('#masthead .mh-date').innerText()).length > 8);
+    check('Live game is marked and other teams show their next or last game', await current.locator('.rail-sports .tm-live').count() === 1 && /W 24–17/.test(await current.locator('.rail-sports').innerText()));
+    check('Headlines run along the bottom', await current.locator('#ticker.is-on .headline').count() > 1 && /Library opens/.test(await current.locator('#ticker').innerText()));
+    await current.screenshot({ path: out + 'rails-home-1920.png' });
+    await nav('down');
+    check('Down moves to the Plex rail', (await state()).focusAction === 'plex.open.0' && (await call('where')).focusCount === 1);
+    await nav('down', 'down', 'down', 'down');
+    check('Down stops at the last rail', (await state()).home.rail === 4 && (await state()).focusAction === 'weather.now');
+    await nav('right', 'right');
+    check('Left/Right move within a rail', (await state()).focusAction === 'weather.hour.2');
+    await nav('back');
+    check('Back from a lower rail returns to the apps', (await state()).home.rail === 0 && (await state()).focusAction === 'home.app.' + (await state()).selected);
+    await nav('up');
+    check('Up from the apps reaches the Home controls', (await state()).focusAction === 'util.inputs');
+    await nav('down', 'down');
+    await nav('ok'); await current.waitForFunction(() => __tv.calls.length > 0);
+    check('A Plex poster opens the Plex app', (await current.evaluate(() => __tv.calls.at(-1))).id === CONFIG_PLEX, await current.evaluate(() => __tv.calls));
+    await current.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await act('ha.run.q1');
+    await current.waitForFunction(() => document.querySelector('[data-action="ha.run.q1"]').classList.contains('is-on'));
+    check('A Home quick button toggles through Home Assistant', log.some(l => l.path === '/api/services/fan/toggle' && JSON.parse(l.body).entity_id === 'fan.ceiling'));
+    await act('ha.run.q2'); await current.waitForFunction(() => /Movie Night started/.test(document.querySelector('.rail-home .rail-label').textContent));
+    check('A routine runs its script and confirms', log.some(l => l.path === '/api/services/script/turn_on'));
+    await act('ha.rooms'); await current.waitForSelector('.ha-tile');
+    check('All rooms opens the rooms panel with one focus', (await state()).view === 'ha' && (await call('where')).focusCount === 1 && await current.locator('.ha-head').count() === 3);
+    await nav('down'); check('Down moves to the next row of devices', (await state()).focusAction === 'ha.entity.light.living');
+    await nav('ok'); await current.waitForFunction(() => /Off/.test(document.querySelector('[data-action="ha.entity.light.living"]').textContent));
+    check('A room device toggles through Home Assistant', log.filter(l => l.path === '/api/services/light/toggle').length === 1);
+    await current.screenshot({ path: out + 'rails-rooms-1920.png' });
+    await nav('back');
+    check('Back closes the rooms panel to its Home tile', (await state()).view === 'home' && (await state()).focusAction === 'ha.rooms');
+    await scene('settings');
+    check('Headlines pause while a panel is open', await current.evaluate(() => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.id === 'tickerTrack').every(a => a.playState !== 'running')));
+    await group('background');
+    check('Background offers My photos when an album is configured', (await radios()).some(r => r.action === 'choice.bg.photos'));
+    await choice('bg', 'photos'); await ready(); await scene('home');
+    await current.waitForFunction(() => ShoreQA.state().ambient.shown, null, { timeout: 8000 });
+    check('My photos shows an album photo using the album key', log.some(l => l.path === '/api/search/random' && l.headers['x-api-key'] === 'test-key' && JSON.parse(l.body).albumIds[0] === 'album-1') && await current.evaluate(() => document.querySelector('.ambient.is-on').naturalWidth > 0));
+    await closePage();
+
+    const failing = ['plex', 'sports'];
+    await page({}, p => { p.__expectedFailures.push('site.api.espn.com', 'plex.example'); return routeIntegrations(p, { failing }); });
+    await current.waitForFunction(() => ShoreQA.state().feeds.plex.status === 'error' && ShoreQA.state().feeds.sports.status === 'error' && ShoreQA.state().feeds.weather.status === 'ready');
+    s = await state();
+    check('Unavailable services show a status tile instead of empty rails', same(s.rails.find(r => r.id === 'plex').items, ['plex.retry']) && /Can.t reach Plex/.test(await current.locator('.rail-plex').innerText()) && /unavailable/i.test(await current.locator('.rail-sports').innerText()));
+    check('Other sections keep working', s.feeds.weather.status === 'ready' && s.feeds.home.status === 'ready');
+    failing.splice(0);
+    await act('plex.retry'); await current.waitForFunction(() => ShoreQA.state().feeds.plex.status === 'ready');
+    check('OK on a failed section retries it', (await state()).rails.find(r => r.id === 'plex').items.length === 6);
+    await closePage();
+
+    const requests = [];
+    await page({}, p => p.on('request', r => requests.push(r.url())));
+    await current.waitForTimeout(400);
+    check('A build without integrations shows only apps and makes no service requests', same((await state()).rails.map(r => r.id), ['apps']) && !requests.some(u => /\/proxy|open-meteo|espn|weather\.gov/.test(u)) && !(await current.locator('#ticker').evaluate(e => e.classList.contains('is-on'))), requests.filter(u => !u.includes('/home/')));
+    await closePage();
+    await page({ seed: undefined });
+    check('A fresh install starts with the US streaming apps', same((await state()).dock, ['netflix', 'youtube', 'disneyplus', 'primevideo', 'hbomax', 'hulu', 'appletv', 'plex', 'spotify']), (await state()).dock);
   });
   section = 'Run integrity';
   report.sourceAfter = hashes();

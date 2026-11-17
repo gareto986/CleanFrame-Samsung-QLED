@@ -2,10 +2,11 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { openPreview, root } from './browser.mjs';
+import { routeIntegrations } from './fixtures/integrations.mjs';
 
 const output = root + '.local/qa/performance/';
 mkdirSync(output, { recursive: true });
-const sourceFiles = ['app/main.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js'];
+const sourceFiles = ['app/main.js', 'app/integrations.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js'];
 function hashes() {
   return Object.fromEntries(sourceFiles.map(file => {
     try { return [file, createHash('sha256').update(readFileSync(root + file)).digest('hex')]; }
@@ -13,7 +14,7 @@ function hashes() {
   }));
 }
 const report = {
-  scope: 'Production /home/ in local Playwright Chromium, 1920×1080, CPU throttled 4×. Mocked public app inventory only. No TV contact or TV timing claim.',
+  scope: 'Production /home/ in local Playwright Chromium, 1920×1080, CPU throttled 4×. Mocked public app inventory and synthetic integration responses only. No TV contact or TV timing claim.',
   sourceBefore: hashes(), checks: [], warnings: [], failures: [], scenarios: [], errors: [],
   budgets: { keyP95Ms: 50, keyMaximumMs: 120, frameMaximumMs: 250, appearanceMaximumMs: 4000 },
   notes: [
@@ -97,6 +98,8 @@ try {
     } };
     localStorage.setItem('cleanframe.home.v1', JSON.stringify({ dock: ['stremio', 'netflix', 'disneyplus', 'youtube', 'appletv', 'primevideo', 'abciview', 'sbs', 'applemusic'], wallpaper: 'misty', mode: 'fixed', theme: 'shore', lastApp: 'netflix' }));
   });
+  // Every Home section is populated so navigation is measured with the full rails Home and headlines running.
+  await routeIntegrations(page);
   cdp = await page.context().newCDPSession(page);
   await cdp.send('Performance.enable');
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -104,19 +107,24 @@ try {
   cdp.on('LayerTree.layerTreeDidChange', e => { layers = e.layers || []; });
   const start = Date.now();
   await page.goto(preview.baseURL + '/home/'); await ready(); await page.waitForLoadState('networkidle');
+  await page.waitForFunction(() => ['weather', 'news', 'sports', 'plex', 'home'].every(n => ShoreQA.state().feeds[n].status === 'ready'), null, { timeout: 30000 });
   report.startupMs = Date.now() - start;
   const startupResources = await page.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
   check('No wallpaper gallery thumbnail fetch at startup', !startupResources.some(u => /-thumb\./.test(u)));
-  await look({ bg: 'photo', layout: 'list', apps: 'both', controls: 'icons', focus: 'glass', material: 'soft', font: 'manrope' });
-  await sample('Photo List navigation', ['down', 'down', 'down', 'up', 'up', 'up']);
-  await look({ layout: 'dock' });
-  await sample('Photo Dock navigation', ['right', 'right', 'right', 'left', 'left', 'left']);
-  await call('nav', 'up');
-  await sample('Dock utilities', ['right', 'right', 'left', 'left']);
+  await look({ bg: 'photo', font: 'manrope' });
+  await sample('Rails between sections', ['down', 'down', 'down', 'down', 'up', 'up', 'up', 'up']);
+  await sample('Apps rail', ['right', 'right', 'right', 'left', 'left', 'left']);
+  await call('nav', 'down');
+  await sample('Plex rail', ['right', 'right', 'right', 'left', 'left', 'left']);
+  await call('nav', 'down', 'down', 'down');
+  await sample('Weather rail with scrolling', ['right', 'right', 'right', 'right', 'right', 'right', 'right', 'left', 'left', 'left']);
+  await call('nav', 'back', 'up');
+  await sample('Home controls', ['right', 'right', 'left', 'left']);
+  await call('nav', 'down');
   await scene('settings');
   await sample('Settings navigation', ['down', 'down', 'up', 'up']);
   await scene('apps');
-  check('Performance inventory includes 23 real-adapter rows', (await call('state')).catalog.ids.length === 23);
+  check('Performance inventory includes 23 real-adapter rows', (await call('state')).catalog.ids.length === 23, (await call('state')).catalog.ids.length);
   await sample('All Apps grid navigation', ['down', 'down', 'right', 'up', 'up', 'left']);
   await scene('editor');
   await sample('Apps on Home navigation', ['down', 'down', 'down', 'up', 'up', 'up']);
@@ -126,10 +134,11 @@ try {
   await scene('appearance');
   await sample('Appearance row navigation', ['down', 'down', 'down', 'up', 'up', 'up']);
   await scene('home');
-  await look({ font: 'newsreader', layout: 'list', apps: 'text', controls: 'text' });
-  await sample('Newsreader List navigation', ['down', 'down', 'down', 'up', 'up', 'up']);
-  await call('nav', 'right');
-  await sample('Newsreader Home controls', ['up', 'up', 'down', 'down']);
+  await look({ font: 'newsreader' });
+  await sample('Newsreader rails navigation', ['down', 'down', 'down', 'up', 'up', 'up']);
+  await call('nav', 'up');
+  await sample('Newsreader Home controls', ['right', 'right', 'left', 'left']);
+  await call('nav', 'down');
 
   const walls = await page.evaluate(() => CleanFrameWallpapers.map(w => w.id));
   const loadTimes = [];
