@@ -26,9 +26,10 @@
     sports: C.sports && list(C.sports.teams).length ? C.sports : null,
     plex: C.plex && /^https?:\/\//.test(str(C.plex.url)) ? C.plex : null,
     home: C.homeAssistant && /^https?:\/\//.test(str(C.homeAssistant.url)) && str(C.homeAssistant.token) ? C.homeAssistant : null,
+    pc: C.pc && /^https?:\/\//.test(str(C.pc.helper)) ? C.pc : null,
     photos: C.photos && C.photos.immich && /^https?:\/\//.test(str(C.photos.immich.url)) && str(C.photos.immich.apiKey) ? C.photos : null
   };
-  var NAMES = ['weather', 'news', 'sports', 'plex', 'home'];
+  var NAMES = ['weather', 'news', 'sports', 'plex', 'home', 'pc'];
   NAMES.forEach(function (n) { S[n] = { status: CFG[n] ? 'idle' : 'off', data: null, error: null, updated: 0 }; });
 
   function emit() { listeners.forEach(function (fn) { try { fn(); } catch (e) { /* A render problem must not stop updates. */ } }); }
@@ -382,6 +383,45 @@
     if (on && started) loadHome();
   }
 
+  /* ---------- Gaming PC and Moonlight (TV Dashboard's NAS helper) ---------- */
+  // The TV cannot probe ports or send Wake-on-LAN, so the helper on the NAS does:
+  // GET /pc -> { online, sunshine }; POST /pc/wake sends the magic packet.
+  // A cold boot took about 100 s to Sunshine being ready; three minutes leaves room.
+  var WAKE_LIMIT = 3 * MINUTE, pc = { until: 0, ready: null, note: '' };
+  function pcName() { return str(CFG.pc.name) || 'PC'; }
+  function loadPc() {
+    var promise = json(base(CFG.pc.helper) + '/pc').then(function (d) {
+      var go;
+      if (d.online) pc.note = '';
+      if (pc.until && d.sunshine) { go = pc.ready; pc.until = 0; pc.ready = null; S.pc.fast = 0; if (go) setTimeout(go, 0); }
+      else if (pc.until && Date.now() > pc.until) { pc.until = 0; pc.ready = null; S.pc.fast = 0; pc.note = 'Didn’t wake'; }
+      return { online: !!d.online, sunshine: !!d.sunshine };
+    }).catch(function () { throw new Error('Helper unreachable'); });
+    return settle('pc', promise, .5, loadPc);
+  }
+  function pcStatus() {
+    var s = S.pc, d = s.data;
+    if (pc.until) return { kind: 'waking', text: 'Waking…' };
+    if (pc.note) return { kind: 'off', text: pc.note };
+    if (!d) return s.status === 'error' ? { kind: 'error', text: s.error } : { kind: 'checking', text: 'Checking…' };
+    if (d.sunshine) return { kind: 'ready', text: 'Ready' };
+    if (d.online) return { kind: 'on', text: 'On · no Sunshine' };
+    return { kind: 'off', text: 'Asleep · OK wakes' };
+  }
+  // OK on the tile: open Moonlight if the PC is up; otherwise wake it and open Moonlight once
+  // Sunshine answers, or give up after three minutes.
+  function pcOk(launch) {
+    var d = S.pc.data;
+    if (!CFG.pc) return;
+    if (d && d.online) { launch(); return; }
+    if (pc.until) return;
+    pc.note = ''; pc.until = Date.now() + WAKE_LIMIT; pc.ready = launch; S.pc.fast = .05;
+    emit();
+    request(base(CFG.pc.helper) + '/pc/wake', { method: 'POST' }).then(function () { loadPc(); }, function () {
+      pc.until = 0; pc.ready = null; S.pc.fast = 0; pc.note = 'Helper unreachable'; emit();
+    });
+  }
+
   /* ---------- Photos (Immich) ---------- */
   var photoQueue = [];
   function immich(path, opts) {
@@ -442,8 +482,8 @@
   }
 
   /* ---------- Lifecycle ---------- */
-  var LOADERS = { weather: loadWeather, news: loadNews, sports: loadSports, plex: loadPlex, home: loadHome };
-  var STALE = { weather: 15, news: 15, sports: 5, plex: 5, home: .25 };
+  var LOADERS = { weather: loadWeather, news: loadNews, sports: loadSports, plex: loadPlex, home: loadHome, pc: loadPc };
+  var STALE = { weather: 15, news: 15, sports: 5, plex: 5, home: .25, pc: .5 };
   function start() {
     visible = true;
     if (started) return;
@@ -469,8 +509,9 @@
     start: start, show: show, hide: hide, retry: retry,
     onChange: function (fn) { listeners.push(fn); },
     home: { quick: quickItems, sections: panelSections, run: runHome, fast: homeFast },
+    pc: { status: pcStatus, ok: pcOk, name: function () { return CFG.pc ? pcName() : ''; }, appId: function () { return CFG.pc && str(CFG.pc.moonlightAppId) || 'MoonLightS.MoonlightWasm'; } },
     plex: { appId: function () { return CFG.plex && str(CFG.plex.appId) || '3201512006963'; } },
-    photos: { next: nextPhoto, every: function () { return Math.max(1, CFG.photos && num(CFG.photos.everyMinutes) || 2); } },
+    photos: { next: nextPhoto, every: function () { return Math.max(5, CFG.photos && num(CFG.photos.everySeconds) || 15); } },
     labels: LABELS, icon: svg, weatherIcon: weatherIcon, esc: esc, has: has
   };
 }());

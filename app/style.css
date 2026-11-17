@@ -638,9 +638,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
    A calm photo header with the clock and weather, then one horizontal rail per section:
    apps, Plex, Home Assistant, sports and the forecast. Headlines run along the bottom.
    Focus uses CleanFrame's plate and transform/opacity only; no live blur. */
-.ambient{position:absolute;left:0;top:0;width:1920px;height:1080px;max-width:none;object-fit:cover;opacity:0;transition:opacity 1600ms linear}
-.ambient.is-on{opacity:1}
-.bg-photo .ambient{display:none}
+/* My photos: TV Dashboard's photo table. No shadows and only opacity animates, for the TV's GPU;
+   prints are dimmed by their own opacity rather than by a full-screen overlay. */
+/* z-index 0 keeps each print's rising z-index inside the table, behind Home and the headlines. */
+.photo-table{position:absolute;z-index:0;left:0;top:0;width:1920px;height:1080px;overflow:hidden;display:none;background:#0d0f12}
+.bg-photos.has-ambient .photo-table{display:block}
+.bg-photos.has-ambient .photo{visibility:hidden}
+.print{position:absolute;background:#ddd;border:12px solid #f4f1ea;border-bottom-width:14px;outline:1px solid rgba(0,0,0,.35);opacity:.78;animation:print-in 1.5s ease backwards}
+.print.leaving{animation:print-out 6s ease-in-out forwards}
+.print img{display:block;width:100%;height:100%}
+@keyframes print-in{from{opacity:0}}
+@keyframes print-out{to{opacity:0}}
 .bg .shade{height:420px;background:linear-gradient(to bottom,rgba(4,10,12,.46),rgba(4,10,12,.22) 220px,rgba(4,10,12,0))}
 .bg .scrim{top:420px;height:660px;background:linear-gradient(to bottom,rgba(4,10,12,0),rgba(4,10,12,.48) 42%,rgba(4,10,12,.66))}
 .bg::after{content:"";position:absolute;left:0;top:0;width:1920px;height:1080px;background:rgba(4,10,12,.5);opacity:0;transition:opacity 320ms linear}
@@ -698,6 +706,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .rail-apps .rt{background:none;box-shadow:none}
 .rail-apps .rt.is-focus{background:var(--plate);box-shadow:var(--plate-edge),0 18px 40px rgba(0,0,0,.24)}
 .rail-apps .rt.is-sel{background:rgba(255,250,240,.08)}
+.k-pc .pc-ico{left:112px;top:24px;width:56px;height:56px;stroke-width:1.5}
+.k-pc .rt-name{position:absolute;left:12px;right:12px;top:88px;text-align:center;font-size:25px;line-height:32px;font-weight:500;letter-spacing:-.3px;opacity:.86}
+.k-pc.is-focus .rt-name{opacity:1}
+.pc-status{position:absolute;left:12px;right:12px;top:124px;display:flex;align-items:center;justify-content:center;font-size:19px;line-height:26px;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden}
+.pc-status i{flex:none;width:10px;height:10px;margin-right:8px;border-radius:5px;background:var(--mute)}
+.pc-status.k-ready i{background:#66d39a}.pc-status.k-on i,.pc-status.k-waking i{background:#f3c56d}.pc-status.k-off i,.pc-status.k-error i{background:#e2645e}
 .k-add,.k-status{display:flex;align-items:center;padding:0 28px;font-size:26px;line-height:34px;font-weight:500}
 .k-add .ico,.k-status .ico{position:static;width:36px;height:36px;flex:none}
 .k-add>*+*,.k-status>*+*{margin-left:16px}
@@ -781,4 +795,4 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .swatch-photos{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f6f80,#c79f6e);color:#fff}
 .swatch-photos .ico{width:28px;height:28px}
 
-@media(prefers-reduced-motion:reduce){.rail,.rail-track,.rt,.ha-in,.ambient{transition:opacity 120ms linear!important}.ha-tile.is-focus .panel-content{transform:none}}
+@media(prefers-reduced-motion:reduce){.print,.print.leaving{animation:none}.rail,.rail-track,.rt,.ha-in{transition:opacity 120ms linear!important}.ha-tile.is-focus .panel-content{transform:none}}

@@ -1109,14 +1109,56 @@ try {
     await current.screenshot({ path: out + 'rails-rooms-1920.png' });
     await nav('back');
     check('Back closes the rooms panel to its Home tile', (await state()).view === 'home' && (await state()).focusAction === 'ha.rooms');
+    check('Moonlight ends the apps rail with the PC asleep', (await state()).rails[0].items.at(-1) === 'pc.open' && /Asleep · OK wakes/.test(await current.locator('.k-pc').innerText()));
+    await current.evaluate(() => window.dispatchEvent(new Event('focus')));
+    const launchesBefore = await current.evaluate(() => __tv.calls.length);
+    await act('pc.open');
+    await current.waitForFunction(() => /Waking/.test(document.querySelector('.k-pc').textContent));
+    check('OK on a sleeping PC sends one wake request through the helper', log.filter(l => l.host === 'pc.example' && l.path === '/pc/wake' && l.method === 'POST').length === 1 && await current.evaluate(n => __tv.calls.length === n, launchesBefore));
+    await current.waitForFunction(() => __tv.calls.some(c => c.id === 'MoonLightS.MoonlightWasm'), null, { timeout: 10000 });
+    check('Moonlight opens once Sunshine answers', /Ready/.test(await current.locator('.k-pc').innerText()) && (await state()).focusAction === 'pc.open', await current.locator('.k-pc').innerText());
+    await current.evaluate(() => { window.dispatchEvent(new Event('focus')); __tv.calls = []; });
+    await nav('ok'); await current.waitForFunction(() => __tv.calls.length > 0);
+    check('OK on a ready PC opens Moonlight at once without waking', (await current.evaluate(() => __tv.calls[0].id)) === 'MoonLightS.MoonlightWasm' && log.filter(l => l.path === '/pc/wake').length === 1);
+    await nav('left');
+    check('Left from Moonlight returns to the last app', (await state()).focusAction === 'home.app.' + (await state()).selected);
+    await current.evaluate(() => window.dispatchEvent(new Event('focus')));
     await scene('settings');
     check('Headlines pause while a panel is open', await current.evaluate(() => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.id === 'tickerTrack').every(a => a.playState !== 'running')));
     await group('background');
     check('Background offers My photos when an album is configured', (await radios()).some(r => r.action === 'choice.bg.photos'));
     await choice('bg', 'photos'); await ready(); await scene('home');
     await current.waitForFunction(() => ShoreQA.state().ambient.shown, null, { timeout: 8000 });
-    check('My photos shows an album photo using the album key', log.some(l => l.path === '/api/search/random' && l.headers['x-api-key'] === 'test-key' && JSON.parse(l.body).albumIds[0] === 'album-1') && await current.evaluate(() => document.querySelector('.ambient.is-on').naturalWidth > 0));
+    check('My photos lays an album print on the table using the album key', log.some(l => l.path === '/api/search/random' && l.headers['x-api-key'] === 'test-key' && JSON.parse(l.body).albumIds[0] === 'album-1') && await current.evaluate(() => {
+      const print = document.querySelector('#photoTable .print'), table = getComputedStyle(document.getElementById('photoTable'));
+      return print && print.querySelector('img').naturalWidth > 0 && /rotate/.test(print.style.transform) && table.display === 'block' && getComputedStyle(document.getElementById('photo')).visibility === 'hidden';
+    }));
     await closePage();
+
+    await closePage();
+
+    await page({ minuteMs: 600, settleNetwork: false, seed: baseline({ look: { bg: 'photos' } }) }, p => routeIntegrations(p));
+    await current.waitForFunction(() => ShoreQA.state().ambient.placed >= 16, null, { timeout: 15000 });
+    const table = await current.evaluate(() => {
+      const prints = [...document.querySelectorAll('#photoTable .print')], clear = [{ x1: 0, y1: 0, x2: 720, y2: 310 }, { x1: 1180, y1: 0, x2: 1920, y2: 200 }];
+      const s = document.getElementById('stage').getBoundingClientRect().width / 1920;
+      return { resting: ShoreQA.state().ambient.prints, leaving: prints.filter(p => p.classList.contains('leaving')).length,
+        sizes: prints.map(p => Math.max(p.offsetWidth, p.offsetHeight)), coverClock: prints.filter(p => !p.classList.contains('leaving')).filter(p => {
+          const r = p.getBoundingClientRect(), x = r.left / s, y = r.top / s;
+          return x < 600 && y < 220 && x + r.width / s > 120;
+        }).length };
+    });
+    check('The table keeps at most twelve prints and dissolves the oldest', table.resting <= 12 && table.leaving > 0, table);
+    check('Prints vary only a little in size', table.sizes.every(v => v >= 360 && v <= 490), table.sizes);
+    check('Prints mostly keep clear of the clock', table.coverClock <= 2, table);
+    await look({ bg: 'dark' });
+    check('Prints stay behind Home and the headlines', await current.evaluate(() => {
+      const r = document.querySelector('.rail-apps .rt').getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !hit.closest('#photoTable');
+    }));
+    check('Leaving My photos clears the table and frees its images', await current.evaluate(() => document.querySelectorAll('#photoTable .print').length === 0 && !ShoreQA.state().ambient.shown));
+    await closePage();
+
 
     const failing = ['plex', 'sports'];
     await page({}, p => { p.__expectedFailures.push('site.api.espn.com', 'plex.example'); return routeIntegrations(p, { failing }); });

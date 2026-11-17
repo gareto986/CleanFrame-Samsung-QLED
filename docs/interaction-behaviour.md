@@ -2,7 +2,7 @@
 
 ## Home
 
-- Home is a photo header with the clock, date and current weather, then one horizontal rail per section: apps, then Plex, Home, sports and weather when they are configured. See [Home integrations](integrations.md). A build without integrations shows only the apps rail.
+- Home is a photo header with the clock, date and current weather, then one horizontal rail per section: apps (ending with Moonlight when a gaming PC is configured), then Plex, Home, sports and weather when they are configured. See [Home integrations](integrations.md). A build without integrations shows only the apps rail.
 - Left/Right moves within a rail without wrapping; a rail scrolls to keep the focused item in view. Up/Down moves between rails, and each rail remembers its item. Lower rails slide up under the header; the next rail peeks below the current one.
 - Up from the apps rail enters the top-right controls: Inputs, All apps and Settings, starting with the last selected control. Left/Right moves between them. Down or Back returns to the selected app.
 - Back from a lower rail returns to the apps rail. Back from the apps rail opens a choice to stay or open Samsung Home.
@@ -17,7 +17,7 @@ Settings opens a grouped overview: Background, Typography, Apps on Home and Sams
 
 | Group | Choices |
 | --- | --- |
-| Background | Wallpaper, My photos (when an album is configured), Light, Dark; Wallpaper picker and Rotation when Wallpaper is active |
+| Background | Wallpaper, My photos (a photo table from an Immich album, when configured), Light, Dark; Wallpaper picker and Rotation when Wallpaper is active |
 | Typography | Manrope, Neue Montreal, Mori, Pangram Sans, Geist and Newsreader, when available |
 | Apps on Home | Membership and arrangement editor |
 | Samsung | Samsung Home, TV settings and Inputs |

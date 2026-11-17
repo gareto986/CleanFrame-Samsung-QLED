@@ -537,8 +537,10 @@
   }
   function railList() {
     var rails = [], h = S.c.home, st;
-    rails.push({ id: 'apps', label: '', h: 168, items: h.length ? h.map(function (id) { return { key: 'app.' + id, kind: 'app', id: id, w: 176, action: 'home.app.' + id }; })
-      : [{ key: 'add', kind: 'add', w: 360, action: 'home.add' }] });
+    rails.push({ id: 'apps', label: '', h: 168, items: (h.length ? h.map(function (id) { return { key: 'app.' + id, kind: 'app', id: id, w: 176, action: 'home.app.' + id }; })
+      : [{ key: 'add', kind: 'add', w: 360, action: 'home.add' }])
+      // Moonlight closes the apps rail, with the gaming PC's status, as on TV Dashboard.
+      .concat(FEEDS && FEEDS.configured('pc') ? [{ key: 'pc', kind: 'pc', w: 280, action: 'pc.open', data: FEEDS.pc.status() }] : []) });
     if (!FEEDS) return rails;
     st = feed('plex');
     if (st.status !== 'off') rails.push({ id: 'plex', label: 'Plex', h: 376, items: st.status === 'ready' ? plexItems(st.data) : [statusTile('plex', st, 'Plex')] });
@@ -556,11 +558,11 @@
     return rails;
   }
   function railIndex(f, r) {
-    if (r.id === 'apps') return S.c.home.length ? Math.max(0, ensureSel()) : 0;
+    if (r.id === 'apps') return f.atPc && r.items[r.items.length - 1].kind === 'pc' ? r.items.length - 1 : S.c.home.length ? Math.max(0, ensureSel()) : 0;
     return clamp(f.at[r.id] || 0, 0, r.items.length - 1);
   }
   function setRailIndex(f, r, i) {
-    if (r.id === 'apps') { if (S.c.home.length) setSel(S.c.home[i]); }
+    if (r.id === 'apps') { f.atPc = r.items[i].kind === 'pc'; if (!f.atPc && S.c.home.length) setSel(S.c.home[i]); }
     else f.at[r.id] = i;
   }
   function say(rail, text) {
@@ -578,6 +580,7 @@
       say('home', it.data.routine ? 'Running ' + it.data.name + '…' : '');
       FEEDS.home.run(it.data.id, function (err) { say('home', err ? err.message : it.data.routine ? it.data.name + ' started.' : ''); render(); });
     } else if (it.kind === 'rooms') openHa();
+    else if (it.kind === 'pc') FEEDS.pc.ok(function () { perform('Moonlight', function (done) { FrameDevice.launchApp(FEEDS.pc.appId(), done); }); });
     else if (it.kind === 'status' || it.kind === 'team') FEEDS.retry(r.id);
   }
   V.home = {
@@ -933,7 +936,7 @@
       reason: t.inputError || (!t.loading && !t.inputs.length ? 'No HDMI inputs were reported by this TV.' : '') }];
     if (t.group === 'background') return [
       { id: 'bg', title: 'Background type', items: options('bg', mine || S.c.bg === 'photos' ? ['photo', 'photos', 'light', 'dark'] : ['photo', 'light', 'dark']),
-        reason: S.c.bg === 'photos' ? mine ? 'Shows a photo from your album, changing every ' + FEEDS.photos.every() + ' minutes.' : 'Photos are not set up in this build; the wallpaper is shown.' : '' },
+        reason: S.c.bg === 'photos' ? mine ? 'Lays prints from your album on the table, one every ' + FEEDS.photos.every() + ' seconds.' : 'Photos are not set up in this build; the wallpaper is shown.' : '' },
       { id: 'wall', title: 'Wallpaper', items: [{ action: 'background.wallpaper', label: wall(S.c.wall).name, thumbnail: true, disabled: flat }] },
       { id: 'rotation', title: 'Rotation', items: [{ action: 'background.rotation', label: mode().name, disabled: flat }], reason: flat ? 'Choose Wallpaper to pick a photo and rotation.' : '' }
     ];
@@ -1157,6 +1160,7 @@
     }
     if (it.kind === 'more') return '<span class="pt-art pt-more">' + FEEDS.icon('plex') + '<span>Open Plex</span></span>';
     if (it.kind === 'ha') return FEEDS.icon(d.icon, 'ha-ico') + '<span class="ha-name">' + esc(d.name) + '</span><span class="ha-state">' + (d.routine ? 'Run' : d.on ? 'On' : 'Off') + '</span>';
+    if (it.kind === 'pc') return FEEDS.icon('moon', 'pc-ico') + '<span class="rt-name">Moonlight</span><span class="pc-status k-' + d.kind + '" title="' + esc(FEEDS.pc.name()) + '"><i></i>' + esc(d.text) + '</span>';
     if (it.kind === 'rooms') return FEEDS.icon('rooms', 'ha-ico') + '<span class="ha-name">All rooms</span><span class="ha-state">Open</span>';
     if (it.kind === 'team') {
       html = d.logo ? '<img class="tm-logo" alt="" src="' + esc(d.logo) + '">' : '<span class="tm-logo tm-blank"></span>';
@@ -1269,14 +1273,65 @@
     if (ticker.anim) { if (tickerRunning()) { if (ticker.anim.playState === 'paused') ticker.anim.play(); } else if (ticker.anim.playState === 'running') ticker.anim.pause(); }
   }
 
-  /* "My photos": one full-screen photo from Immich behind Home, cross-faded on a slow timer.
-     The wallpaper stays underneath until the first photo is ready, and again if photos fail. */
-  var ambient = { els: [$('ambientA'), $('ambientB')], i: 0, urls: [null, null], timer: 0, busy: false, shown: false, error: null };
+  /* "My photos": TV Dashboard's photo table. Every few seconds a print from the Immich album
+     drops onto a dark table at a random size, tilt and spot, keeping clear of the clock and the
+     controls; once twelve are down the oldest dissolve. Tuned for the 2020 TV as on the
+     dashboard: each image is decoded before it is placed, there are no shadows and only
+     opacity animates. The wallpaper stays until the first print is ready. */
+  var TABLE_MAX = 12, TABLE_FADE = 6000, TABLE_SEED = 6, PRINT_MIN = 360, PRINT_MAX = 460;
+  var KEEP_CLEAR = [{ x1: 0, y1: 0, x2: 720, y2: 310 }, { x1: 1180, y1: 0, x2: 1920, y2: 200 }];
+  var ambient = { table: $('photoTable'), timer: 0, busy: false, shown: false, error: null, z: 1, recent: [], placed: 0 };
+  function rand(a, b) { return a + Math.random() * (b - a); }
   function ambientWanted() { return S.c.bg === 'photos' && !!FEEDS && FEEDS.configured('photos') && !document.hidden && feedsStarted; }
+  function covered(x, y, w, h) {
+    var total = 0;
+    KEEP_CLEAR.forEach(function (z) {
+      var ox = Math.min(x + w, z.x2) - Math.max(x, z.x1), oy = Math.min(y + h, z.y2) - Math.max(y, z.y1);
+      if (ox > 0 && oy > 0) total += ox * oy;
+    });
+    return total;
+  }
+  // Try a few spots and keep the one farthest from recent drops, so the table fills out
+  // instead of piling up. A spot over the clock or controls wins only if every try was one.
+  function placeFor(w, h) {
+    var best = null, bestScore = -Infinity, i, x, y, cx, cy, score, hidden;
+    for (i = 0; i < 12; i++) {
+      x = rand(-w * .25, 1920 - w * .75); y = rand(-h * .25, 1080 - h * .75); cx = x + w / 2; cy = y + h / 2; score = 1e9;
+      ambient.recent.forEach(function (p) { score = Math.min(score, Math.sqrt((cx - p.x) * (cx - p.x) + (cy - p.y) * (cy - p.y))); });
+      hidden = covered(x, y, w, h);
+      if (hidden) score = -hidden;
+      if (score > bestScore) { bestScore = score; best = { x: x, y: y, cx: cx, cy: cy }; }
+    }
+    ambient.recent.push({ x: best.cx, y: best.cy });
+    if (ambient.recent.length > 8) ambient.recent.shift();
+    return best;
+  }
+  function printEl(ratio) {
+    var edge = rand(PRINT_MIN, PRINT_MAX), w = Math.round(ratio >= 1 ? edge : edge * ratio), h = Math.round(ratio >= 1 ? edge / ratio : edge), spot = placeFor(w, h), el = document.createElement('div');
+    el.className = 'print';
+    el.style.left = spot.x.toFixed(0) + 'px'; el.style.top = spot.y.toFixed(0) + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px';
+    el.style.zIndex = String(ambient.z++); el.style.transform = 'rotate(' + rand(-14, 14).toFixed(1) + 'deg)';
+    return el;
+  }
+  function dropPrint(el) {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    if (el._url) window.URL.revokeObjectURL(el._url);
+  }
+  function trimTable() {
+    var prints = ambient.table.querySelectorAll('.print:not(.leaving)'), i;
+    for (i = 0; i < prints.length - TABLE_MAX; i++) (function (el) {
+      el.className = 'print leaving';
+      setTimeout(function () { dropPrint(el); }, REDUCED_MOTION ? 0 : TABLE_FADE);
+    }(prints[i]));
+  }
+  function clearTable() {
+    Array.prototype.slice.call(ambient.table.querySelectorAll('.print')).forEach(dropPrint);
+    ambient.recent = []; ambient.placed = 0; ambient.shown = false;
+  }
   function syncAmbient() {
     if (!ambientWanted()) {
       clearTimeout(ambient.timer); ambient.timer = 0;
-      if (S.c.bg !== 'photos' && ambient.shown) { ambient.shown = false; ambient.els.forEach(function (el) { el.className = 'ambient'; }); }
+      if (S.c.bg !== 'photos' && ambient.shown) clearTable();
       return;
     }
     if (!ambient.timer && !ambient.busy) nextAmbient();
@@ -1284,23 +1339,23 @@
   function nextAmbient() {
     ambient.busy = true;
     FEEDS.photos.next(function (url, err) {
-      var k = 1 - ambient.i, el = ambient.els[k], im;
+      var img, ready, seconds = ambient.placed < TABLE_SEED ? 2 : FEEDS.photos.every();
       ambient.busy = false; ambient.error = err ? err.message : null;
+      // The first few come quickly so the table is not bare at startup.
       clearTimeout(ambient.timer);
-      ambient.timer = setTimeout(function () { ambient.timer = 0; syncAmbient(); }, FEEDS.photos.every() * QA.minuteMs);
+      ambient.timer = setTimeout(function () { ambient.timer = 0; syncAmbient(); }, seconds * QA.minuteMs / 60);
       if (!url) return;
       if (!ambientWanted()) { window.URL.revokeObjectURL(url); return; }
-      im = new Image();
-      im.onload = function () {
-        var old = ambient.urls[k];
-        el.src = url; ambient.urls[k] = url;
-        el.className = 'ambient is-on'; ambient.els[ambient.i].className = 'ambient';
-        ambient.i = k;
+      img = new Image(); img.alt = ''; img.src = url;
+      ready = img.decode ? img.decode() : new Promise(function (resolve, reject) { img.onload = resolve; img.onerror = reject; });
+      ready.then(function () {
+        var el;
+        if (!ambientWanted() || !img.naturalWidth) { window.URL.revokeObjectURL(url); return; }
+        el = printEl(img.naturalWidth / img.naturalHeight); el._url = url;
+        el.appendChild(img); ambient.table.appendChild(el); ambient.placed++;
+        trimTable();
         if (!ambient.shown) { ambient.shown = true; render(); }
-        if (old) setTimeout(function () { window.URL.revokeObjectURL(old); }, 3000);
-      };
-      im.onerror = function () { window.URL.revokeObjectURL(url); };
-      im.src = url;
+      }, function () { window.URL.revokeObjectURL(url); });
     });
   }
 
@@ -1827,7 +1882,7 @@
     out.rails = railList().map(function (r) { return { id: r.id, items: r.items.map(function (it) { return it.action; }) }; });
     out.home = { zone: S.stack[0].f.zone, rail: S.stack[0].f.r, util: S.stack[0].f.u };
     out.feeds = FEEDS ? ['weather', 'news', 'sports', 'plex', 'home'].reduce(function (o, n) { var st = FEEDS.state(n); o[n] = { status: st.status, error: st.error }; return o; }, {}) : null;
-    out.ambient = { shown: ambient.shown, error: ambient.error };
+    out.ambient = { shown: ambient.shown, error: ambient.error, prints: ambient.table.querySelectorAll('.print:not(.leaving)').length, placed: ambient.placed };
     return JSON.parse(JSON.stringify(out));
   };
   QA.where = function () {

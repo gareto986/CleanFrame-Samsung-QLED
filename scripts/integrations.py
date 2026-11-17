@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = Path('.local/integrations.json')
-SECTIONS = {'weather', 'news', 'sports', 'plex', 'homeAssistant', 'photos'}
+SECTIONS = {'weather', 'news', 'sports', 'plex', 'homeAssistant', 'photos', 'pc'}
 # Keyless public services used by the integrations, in addition to configured hosts.
 PUBLIC_HOSTS = {'api.open-meteo.com', 'api.weather.gov', 'site.api.espn.com'}
 
@@ -49,6 +49,8 @@ def configured_urls(data):
         urls.append(data['plex'].get('url'))
     if isinstance(data.get('homeAssistant'), dict):
         urls.append(data['homeAssistant'].get('url'))
+    if isinstance(data.get('pc'), dict):
+        urls.append(data['pc'].get('helper'))
     photos = data.get('photos')
     if isinstance(photos, dict) and isinstance(photos.get('immich'), dict):
         urls.append(photos['immich'].get('url'))

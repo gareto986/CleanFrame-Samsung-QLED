@@ -29,7 +29,8 @@ export const CONFIG = {
       { name: 'Kitchen', items: [['light.kitchen', 'Cans']] }
     ]
   },
-  photos: { immich: { url: 'http://photos.example:2283', apiKey: 'test-key', albumId: 'album-1' }, everyMinutes: 2 }
+  pc: { helper: 'http://pc.example:8011', name: 'gamingpc', moonlightAppId: 'MoonLightS.MoonlightWasm' },
+  photos: { immich: { url: 'http://photos.example:2283', apiKey: 'test-key', albumId: 'album-1' }, everySeconds: 15 }
 };
 
 const iso = (d) => d.toISOString().slice(0, 19);
@@ -101,7 +102,10 @@ export async function routeIntegrations(page, { failing = [], config = CONFIG, l
   await page.route(url => url.hostname === 'plex.example' && url.pathname.startsWith('/photo/'), r => r.fulfill({ contentType: 'image/jpeg', body: poster }));
   // The TV (and the mocked TV harness) fetches services directly; the plain browser preview
   // goes through the preview server's /proxy. Both reach these responses.
-  const HOSTS = ['api.open-meteo.com', 'api.weather.gov', 'site.api.espn.com', 'news.example', 'ha.example', 'photos.example'];
+  const HOSTS = ['api.open-meteo.com', 'api.weather.gov', 'site.api.espn.com', 'news.example', 'ha.example', 'photos.example', 'pc.example'];
+  // The PC starts asleep; a wake request brings it up with Sunshine on the next status check.
+  const pc = { online: false, sunshine: false, wakes: 0 };
+  states.__pc = pc;
   const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'authorization, content-type, x-api-key, accept' };
   await page.route(url => url.pathname === '/proxy' || HOSTS.includes(url.hostname) || (url.hostname === 'plex.example' && !url.pathname.startsWith('/photo/')), async (route) => {
     const req = route.request(), raw = new URL(req.url()), target = raw.pathname === '/proxy' ? new URL(raw.searchParams.get('url')) : raw, host = target.hostname, path = target.pathname;
@@ -109,7 +113,7 @@ export async function routeIntegrations(page, { failing = [], config = CONFIG, l
     const fulfill = route.fulfill.bind(route);
     route = { fulfill: (o) => fulfill({ ...o, headers: { ...CORS, ...(o.headers || {}) } }) };
     log.push({ host, path, method: req.method(), headers: req.headers(), body: req.postData() });
-    const name = host.includes('weather') || host.includes('meteo') ? 'weather' : host.includes('news') ? 'news' : host.includes('espn') ? 'sports' : host.startsWith('plex') ? 'plex' : host.startsWith('ha') ? 'home' : host.startsWith('photos') ? 'photos' : 'other';
+    const name = host.includes('weather') || host.includes('meteo') ? 'weather' : host.includes('news') ? 'news' : host.includes('espn') ? 'sports' : host.startsWith('plex') ? 'plex' : host.startsWith('ha') ? 'home' : host.startsWith('photos') ? 'photos' : host.startsWith('pc') ? 'pc' : 'other';
     if (failing.includes(name)) return route.fulfill({ status: 503, body: '' });
     const json = (body) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
     const now = new Date();
@@ -143,6 +147,10 @@ export async function routeIntegrations(page, { failing = [], config = CONFIG, l
         if (path.endsWith('/toggle')) states[id] = states[id] === 'on' ? 'off' : 'on';
         return json([]);
       }
+    }
+    if (host === 'pc.example') {
+      if (path === '/pc' && req.method() === 'GET') { const body = { name: 'gamingpc', online: pc.online, sunshine: pc.sunshine }; if (pc.wakes) { pc.online = true; pc.sunshine = true; } return json(body); }
+      if (path === '/pc/wake' && req.method() === 'POST') { pc.wakes++; return json({ ok: true }); }
     }
     if (host === 'photos.example') {
       if (req.headers()['x-api-key'] !== 'test-key') return route.fulfill({ status: 401, body: '' });
