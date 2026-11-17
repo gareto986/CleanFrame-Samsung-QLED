@@ -3,13 +3,16 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { findPython } from './python.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 
 export async function openPreview({ publicFonts = false } = {}) {
   const args = ['scripts/preview.py', '--port', '0'];
   if (publicFonts || process.env.CLEANFRAME_PUBLIC_FONTS === '1') args.push('--public-fonts');
-  const server = spawn('python3', args, {
+  const python = findPython();
+  if (!python) throw Error('Python 3.10 or newer was not found (tried python3, python and py -3).');
+  const server = spawn(python[0], [...python[1], ...args], {
     cwd: root, stdio: ['ignore', 'pipe', 'pipe']
   });
   let browser;
