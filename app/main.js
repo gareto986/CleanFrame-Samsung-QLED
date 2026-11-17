@@ -522,16 +522,26 @@
     w.days.slice(1, 6).forEach(function (d, i) { out.push({ key: 'wx.d' + i, kind: 'day', w: 120, action: 'weather.day.' + i, data: d }); });
     return out;
   }
+  /* Plex keeps TV Dashboard's three groups in one row; each group's first poster carries
+     its heading and a wider gap sets the groups apart. */
+  var PLEX_GROUPS = { 'continue': 'Continue watching', tv: 'New TV', movie: 'New movies' };
+  function plexItems(list) {
+    var last = null, out = [];
+    list.forEach(function (it, i) {
+      var first = it.kind !== last;
+      out.push({ key: 'plex.' + i + '.' + it.title, kind: 'poster', w: 160, action: 'plex.open.' + i, data: it,
+        head: first ? PLEX_GROUPS[it.kind] || '' : '', lead: first && i ? 40 : 0 });
+      last = it.kind;
+    });
+    return out.concat([{ key: 'plex.app', kind: 'more', w: 160, action: 'plex.app', lead: 40 }]);
+  }
   function railList() {
     var rails = [], h = S.c.home, st;
     rails.push({ id: 'apps', label: '', h: 168, items: h.length ? h.map(function (id) { return { key: 'app.' + id, kind: 'app', id: id, w: 176, action: 'home.app.' + id }; })
       : [{ key: 'add', kind: 'add', w: 360, action: 'home.add' }] });
     if (!FEEDS) return rails;
     st = feed('plex');
-    if (st.status !== 'off') rails.push({ id: 'plex', label: 'Plex', h: 336, items: st.status === 'ready'
-      ? st.data.map(function (it, i) { return { key: 'plex.' + i + '.' + it.title, kind: 'poster', w: 160, action: 'plex.open.' + i, data: it }; })
-        .concat([{ key: 'plex.app', kind: 'more', w: 160, action: 'plex.app' }])
-      : [statusTile('plex', st, 'Plex')] });
+    if (st.status !== 'off') rails.push({ id: 'plex', label: 'Plex', h: 376, items: st.status === 'ready' ? plexItems(st.data) : [statusTile('plex', st, 'Plex')] });
     st = feed('home');
     if (st.status !== 'off') rails.push({ id: 'home', label: 'Home', h: 128, items: FEEDS.home.quick().map(function (q) {
       return { key: 'ha.' + q.key, kind: 'ha', w: 256, action: 'ha.run.' + q.key, data: q, stale: st.status === 'error' };
@@ -1085,7 +1095,8 @@
     if (appliedFont === id && appliedFontMetrics === metrics) return;
     appliedFont = id; appliedFontMetrics = metrics;
     var values = { 'display-family': '"' + f.family + '"', 'ui-family': '"' + ui.family + '"', 'primary-family': '"' + primary.family + '"', 'display-weight': f.display, 'ui-weight': ui.weight, 'primary-weight': primary.weight, 'clock-weight': f.clock,
-      'clock-shift': px(fontShift('clock', 48)), 'clock-digit': px(metrics ? metrics.digitCell : 0) };
+      // Measured at 48px; expressed in em so they scale with whatever size the clock is drawn at.
+      'clock-shift': (fontShift('clock', 48) / 48).toFixed(4) + 'em', 'clock-digit': metrics && metrics.digitCell ? (metrics.digitCell / 48).toFixed(4) + 'em' : 'auto' };
     Object.keys(values).forEach(function (key) { homeEl.style.setProperty('--font-' + key, String(values[key])); });
   }
 
@@ -1140,9 +1151,9 @@
     if (it.kind === 'add') return icon('plus') + '<span class="rt-name">Add apps to Home</span>';
     if (it.kind === 'status') return (it.error ? icon('warn') : '') + '<span class="rt-text">' + esc(it.text) + '</span>' + (it.error ? '<span class="rt-hint">OK tries again</span>' : '');
     if (it.kind === 'poster') {
-      return '<span class="pt-art' + (d.image ? '' : ' is-missing') + '">' + (d.image ? '<img alt="" src="' + esc(d.image) + '">' : '') + '<span class="pt-fallback">' + esc(d.title) + '</span>'
+      return (it.head ? '<span class="pt-group">' + esc(it.head) + '</span>' : '') + '<span class="pt-art' + (d.image ? '' : ' is-missing') + '">' + (d.image ? '<img alt="" src="' + esc(d.image) + '">' : '') + '<span class="pt-fallback">' + esc(d.title) + '</span>'
         + (d.progress ? '<span class="pt-progress"><i style="width:' + Math.round(d.progress * 100) + '%"></i></span>' : '') + '</span>'
-        + '<span class="pt-title">' + esc(d.title) + '</span><span class="pt-sub">' + (d.kind === 'continue' ? '<b>Continue</b> · ' : '') + esc(d.sub) + '</span>';
+        + '<span class="pt-title">' + esc(d.title) + '</span><span class="pt-sub">' + esc(d.sub) + '</span>';
     }
     if (it.kind === 'more') return '<span class="pt-art pt-more">' + FEEDS.icon('plex') + '<span>Open Plex</span></span>';
     if (it.kind === 'ha') return FEEDS.icon(d.icon, 'ha-ico') + '<span class="ha-name">' + esc(d.name) + '</span><span class="ha-state">' + (d.routine ? 'Run' : d.on ? 'On' : 'Off') + '</span>';
@@ -1165,6 +1176,7 @@
     if (it.kind === 'app') return it.id + '|' + app(it.id).name + '|' + S.c.bg;
     if (it.kind === 'ha') return [d.name, d.icon, d.on, d.routine].join('|');
     if (it.kind === 'status') return it.text;
+    if (it.kind === 'poster') return (it.head || '') + '|' + JSON.stringify(d);
     return it.kind + '|' + JSON.stringify(d || null);
   }
   function railTops(R) {
@@ -1194,7 +1206,7 @@
       el.className = 'rail rail-' + r.id + (active ? ' is-current' : '') + (ri < focusRail || y >= RAIL_FLOOR ? ' is-away' : ri > focusRail ? ' is-next' : '');
       el.style.transform = 'translate3d(0,' + y + 'px,0)';
       view.style.top = ((r.label ? RAIL_LABEL : 0) - 24) + 'px'; view.style.height = (r.h + 48) + 'px';
-      r.items.forEach(function (it) { xs.push(x); x += it.w + RAIL_GAP; });
+      r.items.forEach(function (it) { x += it.lead || 0; xs.push(x); x += it.w + RAIL_GAP; });
       total = Math.max(0, x - RAIL_GAP);
       sx = railScroll[r.id] || 0;
       if (xs[index] < sx) sx = xs[index];

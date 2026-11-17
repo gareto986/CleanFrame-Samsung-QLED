@@ -1041,6 +1041,22 @@ try {
     await nav('back'); await library();
     check('Browser All Apps has no installed fixtures', /TV/.test(await current.locator('#stage').innerText()) && !(await current.locator('[data-action^="apps.open."]').count()));
   });
+  await run('Clock digits keep their spacing at Home size', async () => {
+    // Some browsers measure a font's digits as unequal, which turns on fixed digit cells.
+    await page({}, p => p.addInitScript(() => {
+      const real = HTMLElement.prototype.getBoundingClientRect;
+      HTMLElement.prototype.getBoundingClientRect = function () {
+        const r = real.call(this);
+        return this.style && this.style.left === '-10000px' && this.textContent === '1' ? { ...r.toJSON(), width: r.width * 0.8 } : r;
+      };
+    }));
+    const clock = await current.evaluate(() => {
+      const c = document.querySelector('#masthead .clock'), size = parseFloat(getComputedStyle(c).fontSize), parts = [...c.childNodes];
+      const boxes = [...c.querySelectorAll('.clock-digit')].map(d => d.getBoundingClientRect());
+      return { size, cells: boxes.map(b => b.width), ordered: boxes.every((b, i) => !i || b.left >= boxes[i - 1].right - 1), colon: parts.some(n => n.nodeType === 3 && n.textContent === ':') };
+    });
+    check('Fixed digit cells scale with the large clock and never overlap', clock.cells.length >= 3 && clock.cells.every(w => w > clock.size * .45) && clock.ordered && clock.colon, clock);
+  });
   await run('Home rails and integrations', async () => {
     const log = [], feedsReady = () => current.waitForFunction(() => { const f = ShoreQA.state().feeds; return ['weather', 'news', 'sports', 'plex', 'home'].every(n => f[n].status === 'ready'); }, null, { timeout: 15000 });
     await page({ initiallyHidden: true, pauseHiddenFrames: true }, p => routeIntegrations(p, { log }));
@@ -1052,6 +1068,16 @@ try {
     let s = await state();
     check('Rails appear in order: apps, Plex, Home, sports, weather', same(s.rails.map(r => r.id), ['apps', 'plex', 'home', 'sports', 'weather']), s.rails);
     check('Plex lists Continue first, then recently added, then Open Plex', s.rails[1].items.length === 6 && s.rails[1].items.at(-1) === 'plex.app' && /Continue/.test(await current.locator('.rail-plex .rt').first().innerText()));
+    const groups = await current.locator('.rail-plex .pt-group').allTextContents();
+    check('Plex keeps the Continue watching, New TV and New movies groups in order', same(groups, ['Continue watching', 'New TV', 'New movies']), groups);
+    check('New TV holds the show and New movies the films', await current.evaluate(() => {
+      const titles = [...document.querySelectorAll('.rail-plex .k-poster')].map(t => t.querySelector('.pt-title').textContent);
+      return titles.join('|') === 'Coastline|Quiet Valley|Harbor Lights|The Long Field|Night Ferry';
+    }));
+    check('Groups are set apart by a wider gap', await current.evaluate(() => {
+      const x = [...document.querySelectorAll('.rail-plex .rt')].map(t => t.getBoundingClientRect().left);
+      return Math.round(x[2] - x[1]) === 216 && Math.round(x[1] - x[0]) === 176;
+    }));
     check('Masthead shows the date and current weather', /°/.test(await current.locator('#masthead .mh-weather').innerText()) && (await current.locator('#masthead .mh-date').innerText()).length > 8);
     check('Live game is marked and other teams show their next or last game', await current.locator('.rail-sports .tm-live').count() === 1 && /W 24–17/.test(await current.locator('.rail-sports').innerText()));
     check('Headlines run along the bottom', await current.locator('#ticker.is-on .headline').count() > 1 && /Library opens/.test(await current.locator('#ticker').innerText()));

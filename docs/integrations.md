@@ -3,7 +3,7 @@
 CleanFrame 0.8 replaces the List and Dock layouts with one rails Home. A photo header holds the clock, date and current weather, and each section sits on its own horizontal rail below:
 
 1. **Apps**: the saved Home apps, as before.
-2. **Plex**: Continue watching, then recently added movies and shows, then Open Plex.
+2. **Plex**: three headed groups in one row, as on TV Dashboard: Continue watching, New TV and New movies, then Open Plex.
 3. **Home**: Home Assistant quick buttons, then All rooms.
 4. **Sports**: one card per followed team, with a live score, a recent result or the next game.
 5. **Weather**: now, the next sixteen hours in two-hour steps, and five days.
@@ -21,7 +21,7 @@ Copy `integrations.example.json` to `.local/integrations.json` and fill in your 
 | `weather` | Latitude, longitude, time zone; optional NWS grid (`OFFICE/X,Y`, US only) | Open-Meteo forecast; NWS forecast and active alerts when US units are used |
 | `news` | RSS/Atom feed URLs; `kind: "local"` interleaves local stories | Each feed every 15 minutes |
 | `sports` | ESPN sport, league and team abbreviation | ESPN's public site API: team and schedule, every 15 minutes (every minute during a live game) |
-| `plex` | Server URL; a token, or the TV's address in Plex's "allowed without authentication" list | Sections, recently added and Continue watching, every 15 minutes; poster images |
+| `plex` | Server URL; a token, or the TV's address in Plex's "allowed without authentication" list; optional `continueCount` (4), `showCount` (6) and `movieCount` (6) | Sections, recently added and Continue watching, every 15 minutes; poster images |
 | `homeAssistant` | URL, long-lived access token, quick buttons, routines and rooms | One template request for the listed entities every 15 seconds (3 seconds while All rooms is open); a service call per press |
 | `photos.immich` | URL, API key (album.read, asset.read, asset.view), album ID | Random album search; one preview-size image per change |
 

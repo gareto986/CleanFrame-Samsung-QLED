@@ -261,17 +261,19 @@
     return out;
   }
   function loadPlex() {
-    var p = CFG.plex, continuing = num(p.continueCount) || 6, recent = num(p.recentCount) || 8;
+    // Three groups, as on TV Dashboard: Continue watching, then the newest shows and movies.
+    var p = CFG.plex, continuing = num(p.continueCount) || 4, showCount = num(p.showCount) || 6, movieCount = num(p.movieCount) || 6;
     var promise = plexJSON('/library/sections').then(function (j) {
       var sections = j.MediaContainer && j.MediaContainer.Directory || [];
       return Promise.all(sections.filter(function (s) { return s.type === 'movie' || s.type === 'show'; }).map(function (s) {
         return plexJSON('/library/sections/' + s.key + '/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=' + (s.type === 'show' ? 40 : 12))
-          .then(function (r) { return r.MediaContainer && r.MediaContainer.Metadata || []; }, function () { return []; });
+          .then(function (r) { return { type: s.type, items: r.MediaContainer && r.MediaContainer.Metadata || [] }; }, function () { return { type: s.type, items: [] }; });
       }));
     }).then(function (libs) {
-      var added = [];
-      libs.forEach(function (items) { added = added.concat(group(items)); });
-      added.sort(function (a, b) { return b.addedAt - a.addedAt; });
+      var shows = [], movies = [], newest = function (a, b) { return b.addedAt - a.addedAt; };
+      // Each library is read on its own, so a run of new movies cannot push shows out.
+      libs.forEach(function (l) { if (l.type === 'show') shows = shows.concat(group(l.items)); else movies = movies.concat(group(l.items)); });
+      shows.sort(newest); movies.sort(newest);
       // A problem with this one list should not take the recently added posters with it.
       return plexJSON('/hubs/continueWatching').catch(function () { return {}; }).then(function (j) {
         var mc = j.MediaContainer || {}, items = mc.Hub && mc.Hub[0] && mc.Hub[0].Metadata || mc.Metadata || [], out = [];
@@ -280,8 +282,11 @@
           out.push({ kind: 'continue', title: ep ? m.grandparentTitle : m.title, sub: ep ? 'S' + m.parentIndex + ' · E' + m.index : String(m.year || ''),
             image: poster(ep ? m.grandparentThumb || m.thumb : m.thumb), progress: m.viewOffset && m.duration ? Math.min(1, m.viewOffset / m.duration) : 0 });
         });
-        added.slice(0, recent).forEach(function (a) {
-          out.push({ kind: 'new', title: a.title, sub: (a.count > 1 ? a.count + ' new episodes' : a.ep || String(a.year || '')) + ' · ' + ago(a.addedAt), image: poster(a.thumb), progress: 0 });
+        shows.slice(0, showCount).forEach(function (a) {
+          out.push({ kind: 'tv', title: a.title, sub: (a.count > 1 ? a.count + ' new episodes' : a.ep) + ' · ' + ago(a.addedAt), image: poster(a.thumb), progress: 0 });
+        });
+        movies.slice(0, movieCount).forEach(function (a) {
+          out.push({ kind: 'movie', title: a.title, sub: (a.year ? a.year + ' · ' : '') + ago(a.addedAt), image: poster(a.thumb), progress: 0 });
         });
         if (!out.length) throw new Error('Nothing in progress or recently added');
         return out;

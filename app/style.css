@@ -707,14 +707,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .k-status.is-focus{color:var(--ink)}
 
 .k-poster,.k-more{background:none!important;box-shadow:none!important;overflow:visible}
-.pt-art{position:absolute;left:0;top:0;width:160px;height:240px;border-radius:16px;overflow:hidden;background:rgba(246,241,231,.1);box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.pt-group{position:absolute;left:2px;top:0;font-size:22px;line-height:28px;font-weight:600;letter-spacing:.01em;color:var(--mute);white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+/* Focus scales the poster by 1.05 about its centre (80px, 188px); the heading cancels it about the same point. */
+.pt-group{transform-origin:78px 188px;transition:transform 200ms var(--ease)}
+.k-poster.is-focus .pt-group{transform:scale(.952381)}
+.pt-art{position:absolute;left:0;top:40px;width:160px;height:240px;border-radius:16px;overflow:hidden;background:rgba(246,241,231,.1);box-shadow:0 8px 24px rgba(0,0,0,.28)}
 .pt-art img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
 .pt-art.is-missing .pt-fallback{display:block}
 .pt-fallback{display:none;position:absolute;left:12px;right:12px;top:80px;text-align:center;font-size:22px;line-height:28px;font-weight:600;color:var(--mute)}
 .pt-progress{position:absolute;left:12px;right:12px;bottom:10px;height:6px;border-radius:3px;background:rgba(0,0,0,.45);overflow:hidden}
 .pt-progress i{display:block;height:6px;background:#f6f1e7}
-.pt-title{position:absolute;left:0;right:0;top:254px;font-size:23px;line-height:30px;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.3)}
-.pt-sub{position:absolute;left:0;right:0;top:286px;font-size:20px;line-height:26px;font-weight:500;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-title{position:absolute;left:0;right:0;top:294px;font-size:23px;line-height:30px;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.pt-sub{position:absolute;left:0;right:0;top:326px;font-size:20px;line-height:26px;font-weight:500;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pt-sub b{font-weight:700;color:var(--ink)}
 .k-poster.is-focus .pt-art,.k-more.is-focus .pt-art{box-shadow:0 0 0 4px #f6f1e7,0 18px 40px rgba(0,0,0,.4)}
 .pt-more{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:600}
