@@ -154,5 +154,12 @@
       }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
-  window.FrameDevice = { brandOf: brandOf, launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps, sources: sources, setSource: setSource, cancelSource: cancelSource };
+  function registerMediaKeys() {
+    var dev = window.tizen && window.tizen.tvinputdevice;
+    if (!dev || typeof dev.registerKey !== 'function') return;
+    ['MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaRewind', 'MediaFastForward'].forEach(function (name) {
+      try { dev.registerKey(name); } catch (err) { /* key unavailable on this TV */ }
+    });
+  }
+  window.FrameDevice = { brandOf: brandOf, registerMediaKeys: registerMediaKeys, launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps, sources: sources, setSource: setSource, cancelSource: cancelSource };
 }());

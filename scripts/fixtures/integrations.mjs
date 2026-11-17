@@ -78,15 +78,34 @@ function schedule(win) {
 const plexItems = {
   sections: { MediaContainer: { Directory: [{ key: '1', type: 'movie' }, { key: '2', type: 'show' }] } },
   movies: { MediaContainer: { Metadata: [
-    { type: 'movie', title: 'The Long Field', thumb: '/t/1', addedAt: Date.now() / 1000 - 3600, year: 2025 },
-    { type: 'movie', title: 'Night Ferry', thumb: '/t/2', addedAt: Date.now() / 1000 - 86400 * 3, year: 2024 }] } },
+    { ratingKey: '101', type: 'movie', title: 'The Long Field', thumb: '/t/1', addedAt: Date.now() / 1000 - 3600, year: 2025 },
+    { ratingKey: '102', type: 'movie', title: 'Night Ferry', thumb: '/t/2', addedAt: Date.now() / 1000 - 86400 * 3, year: 2024 }] } },
   shows: { MediaContainer: { Metadata: [
-    { type: 'episode', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', grandparentThumb: '/t/3', parentIndex: 2, index: 4, addedAt: Date.now() / 1000 - 7200 },
-    { type: 'episode', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', grandparentThumb: '/t/3', parentIndex: 2, index: 5, addedAt: Date.now() / 1000 - 3000 }] } },
+    { ratingKey: '51', type: 'episode', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', grandparentThumb: '/t/3', parentIndex: 2, index: 4, addedAt: Date.now() / 1000 - 7200 },
+    { ratingKey: '52', type: 'episode', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', grandparentThumb: '/t/3', parentIndex: 2, index: 5, addedAt: Date.now() / 1000 - 3000 }] } },
   hubs: { MediaContainer: { Hub: [{ Metadata: [
-    { type: 'episode', grandparentTitle: 'Coastline', grandparentThumb: '/t/4', parentIndex: 1, index: 3, viewOffset: 1200000, duration: 3000000 },
-    { type: 'movie', title: 'Quiet Valley', thumb: '/t/5', year: 2023, viewOffset: 600000, duration: 6000000 }] }] } }
+    { ratingKey: '201', type: 'episode', grandparentTitle: 'Coastline', grandparentRatingKey: '300', grandparentThumb: '/t/4', parentIndex: 1, index: 3, viewOffset: 1200000, duration: 3000000 },
+    { ratingKey: '202', type: 'movie', title: 'Quiet Valley', thumb: '/t/5', year: 2023, viewOffset: 600000, duration: 6000000 }] }] } }
 };
+// Playable metadata by ratingKey: a direct file part, and (for 101) a sidecar subtitle stream.
+const part = (key, subs) => ({ Media: [{ Part: [{ key, Stream: subs ? [{ streamType: 3, key: subs, displayTitle: 'English', language: 'English' }] : [] }] }] });
+const plexMeta = {
+  '101': { ratingKey: '101', type: 'movie', title: 'The Long Field', duration: 3600000, viewOffset: 0, ...part('/library/parts/101/file.mp4', '/library/subs/101.srt') },
+  '102': { ratingKey: '102', type: 'movie', title: 'Night Ferry', duration: 7200000, viewOffset: 1200000, ...part('/library/parts/102/file.mp4') },
+  '201': { ratingKey: '201', type: 'episode', title: 'The Cove', grandparentTitle: 'Coastline', grandparentRatingKey: '300', parentIndex: 1, index: 3, duration: 3000000, viewOffset: 1200000, ...part('/library/parts/201/file.mp4') },
+  '203': { ratingKey: '203', type: 'episode', title: 'The Headland', grandparentTitle: 'Coastline', grandparentRatingKey: '300', parentIndex: 1, index: 4, duration: 3000000, viewOffset: 0, ...part('/library/parts/203/file.mp4') },
+  '202': { ratingKey: '202', type: 'movie', title: 'Quiet Valley', duration: 6000000, viewOffset: 600000, ...part('/library/parts/202/file.mp4') },
+  '50': { ratingKey: '50', type: 'show', title: 'Harbor Lights' },
+  '300': { ratingKey: '300', type: 'show', title: 'Coastline' },
+  '51': { ratingKey: '51', type: 'episode', title: 'First Light', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', parentIndex: 2, index: 4, duration: 2400000, viewOffset: 0, ...part('/library/parts/51/file.mp4') },
+  '52': { ratingKey: '52', type: 'episode', title: 'Low Tide', grandparentTitle: 'Harbor Lights', grandparentRatingKey: '50', parentIndex: 2, index: 5, duration: 2400000, viewOffset: 0, ...part('/library/parts/52/file.mp4') }
+};
+const plexLeaves = {
+  '50': ['51', '52'],
+  '300': ['201', '203']
+};
+const clip = readFileSync(root + 'scripts/fixtures/clip.mp4');
+const srt = '1\n00:00:01,000 --> 00:00:04,000\nHello from the test clip\n\n2\n00:00:04,000 --> 00:00:06,000\nSecond line\n';
 const photo = readFileSync(root + 'app/assets/wallpapers/misty.jpg');
 const poster = readFileSync(root + 'app/assets/wallpapers/misty-thumb.jpg');
 
@@ -112,7 +131,7 @@ export async function routeIntegrations(page, { failing = [], config = CONFIG, l
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const fulfill = route.fulfill.bind(route);
     route = { fulfill: (o) => fulfill({ ...o, headers: { ...CORS, ...(o.headers || {}) } }) };
-    log.push({ host, path, method: req.method(), headers: req.headers(), body: req.postData() });
+    log.push({ host, path, search: target.search, method: req.method(), headers: req.headers(), body: req.postData() });
     const name = host.includes('weather') || host.includes('meteo') ? 'weather' : host.includes('news') ? 'news' : host.includes('espn') ? 'sports' : host.startsWith('plex') ? 'plex' : host.startsWith('ha') ? 'home' : host.startsWith('photos') ? 'photos' : host.startsWith('pc') ? 'pc' : 'other';
     if (failing.includes(name)) return route.fulfill({ status: 503, body: '' });
     const json = (body) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
@@ -134,6 +153,13 @@ export async function routeIntegrations(page, { failing = [], config = CONFIG, l
       if (path === '/library/sections/1/recentlyAdded') return json(plexItems.movies);
       if (path === '/library/sections/2/recentlyAdded') return json(plexItems.shows);
       if (path === '/hubs/continueWatching') return json(plexItems.hubs);
+      if (path.startsWith('/:/timeline') || path.startsWith('/:/scrobble')) return route.fulfill({ status: 200, contentType: 'text/plain', body: '' });
+      if (path.startsWith('/library/parts/')) return route.fulfill({ contentType: 'video/mp4', body: clip });
+      if (path.startsWith('/library/subs/')) return route.fulfill({ contentType: 'text/plain', body: srt });
+      const leaves = path.match(/^\/library\/metadata\/(\w+)\/allLeaves$/);
+      if (leaves) return json({ MediaContainer: { Metadata: (plexLeaves[leaves[1]] || []).map(k => plexMeta[k]) } });
+      const one = path.match(/^\/library\/metadata\/(\w+)$/);
+      if (one) return plexMeta[one[1]] ? json({ MediaContainer: { Metadata: [plexMeta[one[1]]] } }) : route.fulfill({ status: 404, body: '' });
       if (path.startsWith('/photo/')) return route.fulfill({ contentType: 'image/jpeg', body: poster });
     }
     if (host === 'ha.example') {

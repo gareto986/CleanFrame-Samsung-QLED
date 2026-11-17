@@ -1093,8 +1093,13 @@ try {
     await nav('up');
     check('Up from the apps reaches the Home controls', (await state()).focusAction === 'util.inputs');
     await nav('down', 'down');
-    await nav('ok'); await current.waitForFunction(() => __tv.calls.length > 0);
-    check('A Plex poster opens the Plex app', (await current.evaluate(() => __tv.calls.at(-1))).id === CONFIG_PLEX, await current.evaluate(() => __tv.calls));
+    await nav('ok');
+    await current.waitForFunction(() => ShoreQA.state().player.active, null, { timeout: 10000 });
+    check('A Plex poster opens the in-screen player, not the app', await current.evaluate(() => __tv.calls.length === 0));
+    await current.keyboard.press('Escape');
+    await current.waitForFunction(() => !ShoreQA.state().player.active);
+    await act('plex.app'); await current.waitForFunction(() => __tv.calls.length > 0);
+    check('Open Plex launches the full app', (await current.evaluate(() => __tv.calls.at(-1))).id === CONFIG_PLEX, await current.evaluate(() => __tv.calls));
     await current.evaluate(() => window.dispatchEvent(new Event('focus')));
     await act('ha.run.q1');
     await current.waitForFunction(() => document.querySelector('[data-action="ha.run.q1"]').classList.contains('is-on'));
@@ -1179,6 +1184,94 @@ try {
     await page({ seed: undefined });
     check('A fresh install starts with the US streaming apps', same((await state()).dock, ['netflix', 'youtube', 'disneyplus', 'primevideo', 'hbomax', 'hulu', 'appletv', 'plex', 'spotify']), (await state()).dock);
   });
+  await run('Plex in-screen playback', async () => {
+    const log = [];
+    await page({}, p => routeIntegrations(p, { log }));
+    await current.waitForFunction(() => ShoreQA.state().feeds.plex.status === 'ready', null, { timeout: 15000 });
+    const pstate = () => current.evaluate(() => ShoreQA.state().player);
+    const timeline = re => log.some(l => l.host === 'plex.example' && l.path === '/:/timeline' && re.test(l.search));
+    const scrobbled = key => log.some(l => l.path === '/:/scrobble' && l.search.indexOf('key=' + key) >= 0);
+    const endVideo = () => current.evaluate(() => document.querySelector('.plex-player video').dispatchEvent(new Event('ended')));
+
+    // A recently-added movie plays in screen, not by launching the app.
+    const launches0 = await current.evaluate(() => __tv.calls.length);
+    await act('plex.open.3');
+    await current.waitForFunction(() => (ShoreQA.state().player.src || '').indexOf('/library/parts/101/file.mp4') >= 0, null, { timeout: 10000 });
+    check('A movie poster plays in-screen without launching Plex', (await pstate()).playing && await current.evaluate(n => __tv.calls.length === n, launches0));
+    // Wait until it is actually playing (not just that the overlay exists).
+    await current.waitForFunction(() => ShoreQA.state().player.paused === false, null, { timeout: 10000 });
+    await current.waitForTimeout(300);
+    check('Playback reports a playing timeline for the title', timeline(/state=playing/) && timeline(/ratingKey=101/));
+    // Home navigation is captured by the player, not the rails.
+    const rail = (await state()).home.rail;
+    await current.keyboard.press('ArrowDown');
+    check('Arrow keys drive the player, not Home, while playing', (await state()).home.rail === rail && (await pstate()).playing);
+    // Pause and resume report paused/playing.
+    await current.keyboard.press('Enter');
+    await current.waitForFunction(() => ShoreQA.state().player.paused === true, null, { timeout: 10000 });
+    await current.waitForTimeout(150);
+    check('OK pauses and reports a paused timeline', timeline(/state=paused/));
+    await current.keyboard.press('Enter');
+    await current.waitForFunction(() => ShoreQA.state().player.paused === false, null, { timeout: 10000 });
+    // Subtitles: turn on, load the sidecar text, and show a cue at its time.
+    await current.keyboard.press('ArrowUp');
+    await current.waitForFunction(() => ShoreQA.state().player.subName === 'English');
+    // The served clip is not seekable in tests; its cue (1-4s) shows as it plays past one second.
+    await current.evaluate(() => { const v = document.querySelector('.plex-player video'); if (v.paused) v.play(); });
+    await current.waitForFunction(() => /Hello from the test clip/.test(ShoreQA.state().player.subtitle), null, { timeout: 8000 });
+    check('Subtitles load from the sidecar stream and show at their cue time', /Hello/.test((await pstate()).subtitle) && log.some(l => l.path === '/library/subs/101.srt'));
+    await current.keyboard.press('ArrowUp');
+    check('Subtitles cycle back to off', (await pstate()).subName === 'off' && (await pstate()).subtitle === '');
+    // Back stops and reports a stopped timeline, and Home returns.
+    await current.keyboard.press('Escape');
+    await current.waitForFunction(() => !ShoreQA.state().player.active);
+    check('Back stops playback, reports stopped and returns to Home', timeline(/state=stopped/) && (await state()).view === 'home' && (await current.evaluate(() => document.querySelectorAll('.plex-player').length)) === 0);
+
+    // A partly-watched movie offers Resume or Start from the beginning.
+    await act('plex.open.4');
+    await current.waitForFunction(() => ShoreQA.state().player.panel);
+    const choices = (await pstate()).choices;
+    check('A partly-watched title offers Resume and Beginning', choices.length === 2 && /Resume from 20:00/.test(choices[0].label) && /beginning/i.test(choices[1].label));
+    await current.keyboard.press('ArrowDown');
+    await current.keyboard.press('Enter');
+    await current.waitForFunction(() => (ShoreQA.state().player.src || '').indexOf('/library/parts/102/file.mp4') >= 0, null, { timeout: 10000 });
+    check('Start from the beginning plays that title', (await pstate()).playing);
+    await current.keyboard.press('Escape');
+    await current.waitForFunction(() => !ShoreQA.state().player.active);
+
+    // A show poster opens its episodes with the next one on top.
+    await act('plex.open.2');
+    await current.waitForFunction(() => ShoreQA.state().player.panel);
+    const eps = (await pstate()).choices;
+    check('A show poster lists episodes with Next up first', /Next up/.test(eps[0].label) && /First Light/.test(eps[0].label) && eps.some(c => /Low Tide/.test(c.label)));
+    await current.keyboard.press('Enter');
+    await current.waitForFunction(() => ShoreQA.state().player.playing && (ShoreQA.state().player.src || '').indexOf('/library/parts/51/') >= 0, null, { timeout: 10000 });
+    // At the end of an episode, the next one counts down and then plays.
+    await endVideo();
+    await current.waitForFunction(() => ShoreQA.state().player.upNext === true, null, { timeout: 10000 });
+    check('An episode ending scrobbles it and starts an Up next countdown', scrobbled('51') && /Up next/.test((await pstate()).message) && /Low Tide/.test((await pstate()).message));
+    await current.keyboard.press('Enter');
+    await current.waitForFunction(() => ShoreQA.state().player.playing && (ShoreQA.state().player.src || '').indexOf('/library/parts/52/') >= 0, null, { timeout: 10000 });
+    check('OK during the countdown starts the next episode', (await pstate()).key === '52');
+    await current.keyboard.press('Escape');
+    await current.waitForFunction(() => !ShoreQA.state().player.active);
+    await closePage();
+
+    // A file the TV can't fetch shows an error rather than a blank screen.
+    await page({}, async p => { p.__expectedFailures.push('/library/parts/'); await routeIntegrations(p); await p.route('**/library/parts/**', r => r.abort('failed')); });
+    await current.waitForFunction(() => ShoreQA.state().feeds.plex.status === 'ready', null, { timeout: 15000 });
+    await act('plex.open.3');
+    await current.waitForFunction(() => /Can.t play this file/.test(ShoreQA.state().player.message), null, { timeout: 10000 });
+    check('An unplayable file reports an error in the player', /Can.t play this file/.test((await pstate()).message));
+    // A build without Plex configured still just launches nothing here; config present path covered above.
+    await closePage();
+
+    // With no key on an item (older cache), OK falls back to launching the Plex app.
+    await page({}, p => routeIntegrations(p, { config: { ...CONFIG, plex: { url: 'http://plex.example:32400' } } }));
+    await current.waitForFunction(() => ShoreQA.state().feeds.plex.status === 'ready', null, { timeout: 15000 });
+    check('Open Plex launches the full app', (await state()).rails.find(r => r.id === 'plex').items.at(-1) === 'plex.app');
+  });
+
   section = 'Run integrity';
   report.sourceAfter = hashes();
   check('No unexpected browser/resource failures', report.pageErrors.length === 0, report.pageErrors);

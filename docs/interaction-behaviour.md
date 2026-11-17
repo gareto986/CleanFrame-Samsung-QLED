@@ -7,6 +7,7 @@
 - Up from the apps rail enters the top-right controls: Inputs, All apps and Settings, starting with the last selected control. Left/Right moves between them. Down or Back returns to the selected app.
 - Back from a lower rail returns to the apps rail. Back from the apps rail opens a choice to stay or open Samsung Home.
 - OK opens the selected item. Focus alone never launches an app. Inputs opens the HDMI chooser directly; its Back returns to Home.
+- OK on a Plex poster plays the title in-screen (resume prompt, episode list, subtitles, and progress reported to the Plex server), not by launching the Plex app; the Open Plex tile launches the app. While a video plays the remote controls playback. See [Home integrations](integrations.md).
 - Headlines run along the bottom when configured and pause whenever Home is not showing.
 - A panel keeps focus within its own controls. Back closes one panel at a time.
 - Returning to the running launcher keeps the selected app, rail or panel item. There is no auto-return timer. Held OK and Back keys act once until the key is released.

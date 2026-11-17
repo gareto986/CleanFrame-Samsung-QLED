@@ -255,12 +255,24 @@
         key = ep ? m.grandparentRatingKey : m.parentRatingKey;
         if (shows[key]) { shows[key].count += m.type === 'season' ? m.leafCount || 1 : 1; shows[key].addedAt = Math.max(shows[key].addedAt, m.addedAt); return; }
         entry = shows[key] = { title: ep ? m.grandparentTitle : m.parentTitle, thumb: ep ? m.grandparentThumb || m.parentThumb : m.parentThumb || m.thumb,
-          addedAt: m.addedAt, count: m.type === 'season' ? m.leafCount || 1 : 1, ep: ep ? 'S' + m.parentIndex + ' · E' + m.index : m.title };
+          addedAt: m.addedAt, count: m.type === 'season' ? m.leafCount || 1 : 1, ep: ep ? 'S' + m.parentIndex + ' · E' + m.index : m.title, showKey: str(key) };
         out.push(entry);
-      } else out.push({ title: m.title, thumb: m.thumb, addedAt: m.addedAt, year: m.year, count: 0 });
+      } else out.push({ title: m.title, thumb: m.thumb, addedAt: m.addedAt, year: m.year, count: 0, key: str(m.ratingKey) });
     });
     return out;
   }
+  // The player (main.js) needs metadata, the episode list, a direct file URL, subtitle text,
+  // and fire-and-forget progress reports. These keep every Plex HTTP call in this module.
+  var PLEX_CLIENT = 'X-Plex-Client-Identifier=cleanframe-tizen&X-Plex-Product=CleanFrame&X-Plex-Device-Name=CleanFrame&X-Plex-Platform=Tizen';
+  function plexMeta(key) { return plexJSON('/library/metadata/' + encodeURIComponent(key)).then(function (j) { var m = j.MediaContainer && j.MediaContainer.Metadata; if (!m || !m[0]) throw new Error('not found'); return m[0]; }); }
+  function plexEpisodes(showKey) { return plexJSON('/library/metadata/' + encodeURIComponent(showKey) + '/allLeaves').then(function (j) { return list(j.MediaContainer && j.MediaContainer.Metadata); }); }
+  function plexStreamUrl(partKey) { return plexUrl(partKey); }
+  function plexSubText(streamKey) { return text(plexUrl(streamKey)); }
+  // Fire-and-forget: a report must never throw into the player or block a key press.
+  function tell(path) { request(plexUrl(path) + '&' + PLEX_CLIENT).then(function () {}, function () {}); }
+  function plexTimeline(key, state, timeMs, durMs) { if (!CFG.plex) return; tell('/:/timeline?ratingKey=' + encodeURIComponent(key) + '&key=' + encodeURIComponent('/library/metadata/' + key) + '&state=' + state + '&time=' + Math.round(timeMs || 0) + '&duration=' + Math.round(durMs || 0)); }
+  function plexScrobble(key) { if (!CFG.plex) return; tell('/:/scrobble?key=' + encodeURIComponent(key) + '&identifier=com.plexapp.plugins.library'); }
+
   function loadPlex() {
     // Three groups, as on TV Dashboard: Continue watching, then the newest shows and movies.
     var p = CFG.plex, continuing = num(p.continueCount) || 4, showCount = num(p.showCount) || 6, movieCount = num(p.movieCount) || 6;
@@ -281,13 +293,16 @@
         items.slice(0, continuing).forEach(function (m) {
           var ep = m.type === 'episode';
           out.push({ kind: 'continue', title: ep ? m.grandparentTitle : m.title, sub: ep ? 'S' + m.parentIndex + ' · E' + m.index : String(m.year || ''),
-            image: poster(ep ? m.grandparentThumb || m.thumb : m.thumb), progress: m.viewOffset && m.duration ? Math.min(1, m.viewOffset / m.duration) : 0 });
+            image: poster(ep ? m.grandparentThumb || m.thumb : m.thumb), progress: m.viewOffset && m.duration ? Math.min(1, m.viewOffset / m.duration) : 0,
+            key: str(m.ratingKey), media: ep ? 'episode' : 'movie', play: 'item' });
         });
         shows.slice(0, showCount).forEach(function (a) {
-          out.push({ kind: 'tv', title: a.title, sub: (a.count > 1 ? a.count + ' new episodes' : a.ep) + ' · ' + ago(a.addedAt), image: poster(a.thumb), progress: 0 });
+          out.push({ kind: 'tv', title: a.title, sub: (a.count > 1 ? a.count + ' new episodes' : a.ep) + ' · ' + ago(a.addedAt), image: poster(a.thumb), progress: 0,
+            key: a.showKey, media: 'show', play: 'show' });
         });
         movies.slice(0, movieCount).forEach(function (a) {
-          out.push({ kind: 'movie', title: a.title, sub: (a.year ? a.year + ' · ' : '') + ago(a.addedAt), image: poster(a.thumb), progress: 0 });
+          out.push({ kind: 'movie', title: a.title, sub: (a.year ? a.year + ' · ' : '') + ago(a.addedAt), image: poster(a.thumb), progress: 0,
+            key: a.key, media: 'movie', play: 'item' });
         });
         if (!out.length) throw new Error('Nothing in progress or recently added');
         return out;
@@ -510,7 +525,8 @@
     onChange: function (fn) { listeners.push(fn); },
     home: { quick: quickItems, sections: panelSections, run: runHome, fast: homeFast },
     pc: { status: pcStatus, ok: pcOk, name: function () { return CFG.pc ? pcName() : ''; }, appId: function () { return CFG.pc && str(CFG.pc.moonlightAppId) || 'MoonLightS.MoonlightWasm'; } },
-    plex: { appId: function () { return CFG.plex && str(CFG.plex.appId) || '3201512006963'; } },
+    plex: { appId: function () { return CFG.plex && str(CFG.plex.appId) || '3201512006963'; },
+      meta: plexMeta, episodes: plexEpisodes, streamUrl: plexStreamUrl, subText: plexSubText, timeline: plexTimeline, scrobble: plexScrobble },
     photos: { next: nextPhoto, every: function () { return Math.max(5, CFG.photos && num(CFG.photos.everySeconds) || 15); } },
     labels: LABELS, icon: svg, weatherIcon: weatherIcon, esc: esc, has: has
   };

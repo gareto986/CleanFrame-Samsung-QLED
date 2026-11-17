@@ -796,3 +796,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .swatch-photos .ico{width:28px;height:28px}
 
 @media(prefers-reduced-motion:reduce){.print,.print.leaving{animation:none}.rail,.rail-track,.rt,.ha-in{transition:opacity 120ms linear!important}.ha-tile.is-focus .panel-content{transform:none}}
+
+/* ---------- Plex in-screen player (0.8) ----------
+   Faithful to TV Dashboard: a full-screen video over Home with its own OSD and subtitles,
+   plus a resume/episode panel. Flat and transform/opacity only, for the TV. */
+.plex-panel{position:absolute;z-index:40;left:0;top:0;width:1920px;height:1080px;background:rgba(8,11,14,.86);padding:120px 160px;overflow:hidden}
+.plex-panel[hidden]{display:none}
+.pp-title{font-size:52px;line-height:60px;font-weight:600;letter-spacing:-1px;max-width:1600px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-hint-line{margin-top:8px;font-size:26px;line-height:34px;color:var(--mute)}
+.pp-choices{margin-top:48px}
+.pp-choice{width:760px;height:80px;padding:0 32px;border-radius:20px;display:flex;align-items:center;font-size:32px;line-height:40px;font-weight:600;color:var(--ink);background:rgba(246,241,231,.08)}
+.pp-choices .pp-choice+.pp-choice{margin-top:20px}
+.pp-choice.is-focus{background:var(--solid);color:var(--solid-ink)}
+.pp-next{margin-top:40px;width:1600px;min-height:92px;padding:16px 32px;border-radius:20px;display:flex;flex-direction:column;justify-content:center;font-size:32px;line-height:40px;font-weight:600;color:var(--ink);background:rgba(246,241,231,.08)}
+.pp-next.is-focus{background:var(--solid);color:var(--solid-ink)}
+.pp-label{font-size:22px;line-height:28px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.pp-next.is-focus .pp-label{color:var(--solid-mute)}
+.pp-scroll{margin-top:32px;height:560px;overflow:hidden}
+.pp-season{margin-top:24px;font-size:26px;line-height:34px;font-weight:700;color:var(--mute)}
+.pp-ep{width:1600px;height:64px;padding:0 24px;border-radius:14px;display:flex;align-items:center;font-size:28px;line-height:36px;color:var(--ink)}
+.pp-ep.is-focus{background:var(--solid);color:var(--solid-ink)}
+.pp-ep.is-watched{opacity:.55}
+.pp-ep.is-next{box-shadow:inset 0 0 0 2px rgba(246,241,231,.4)}
+.pp-num{flex:none;width:64px;font-weight:700;color:var(--mute)}
+.pp-ep.is-focus .pp-num{color:var(--solid-mute)}
+.pp-ep-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-check{flex:none;margin-left:16px;color:#66d39a}
+.pp-mini{flex:none;margin-left:16px;width:120px;height:6px;border-radius:3px;background:rgba(246,241,231,.25);overflow:hidden}
+.pp-mini i{display:block;height:6px;background:#f6f1e7}
+
+.plex-player{position:absolute;z-index:60;left:0;top:0;width:1920px;height:1080px;background:#000}
+.plex-player video{position:absolute;left:0;top:0;width:1920px;height:1080px;background:#000;object-fit:contain}
+.pp-sub{position:absolute;left:160px;right:160px;bottom:120px;text-align:center;font-size:40px;line-height:52px;font-weight:600;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.9);white-space:pre-line}
+.pp-sub[hidden]{display:none}
+.pp-osd{position:absolute;left:0;right:0;bottom:0;height:200px;padding:0 112px;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:56px;opacity:0;background:linear-gradient(to top,rgba(0,0,0,.72),rgba(0,0,0,0));transition:opacity 180ms linear;pointer-events:none}
+.pp-osd.is-on{opacity:1}
+.pp-name{font-size:34px;line-height:44px;font-weight:600;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.pp-bar{margin-top:16px;height:8px;border-radius:4px;background:rgba(255,255,255,.28);overflow:hidden}
+.pp-bar i{display:block;height:8px;width:0;background:#fff}
+.pp-osd-row{margin-top:12px;display:flex;align-items:center;font-size:24px;line-height:32px;font-weight:500;color:rgba(255,255,255,.86)}
+.pp-time{flex:none}
+.pp-keys{flex:1;min-width:0;margin-left:24px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.7)}
+.pp-msg{position:absolute;left:0;right:0;top:50%;margin-top:-30px;text-align:center;font-size:30px;line-height:40px;font-weight:600;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.8)}
+.pp-msg[hidden]{display:none}
+.is-toast{background:none}
+.is-toast .pp-msg{background:rgba(8,11,14,.9);display:inline-block;left:50%;right:auto;transform:translateX(-50%);padding:16px 32px;border-radius:16px}
+@media(prefers-reduced-motion:reduce){.pp-osd{transition:none}}

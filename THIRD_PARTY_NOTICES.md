@@ -17,7 +17,7 @@ The public app uses Manrope, Geist and Newsreader. A personal widget containing 
 | Material | Provenance and terms |
 | --- | --- |
 | Simple Icons service marks | CC0; exact revisions and adaptations in `app/assets/icons/SOURCES.json` and `ADDITIONAL-SOURCES.json`. The CC0 text is retained beside the icons. |
-| Disney+, ABC and SBS marks | [Custom Brand Icons](https://github.com/elax46/custom-brand-icons), MIT. The retained licence is `app/assets/icons/CUSTOM-BRAND-ICONS-LICENSE.txt`. ABC and SBS sources were replaced during the public-source review. Exact revisions, source files and extraction/recolour notes are in `SOURCES.json`. |
+| Disney+, Hulu, ABC and SBS marks | [Custom Brand Icons](https://github.com/elax46/custom-brand-icons), MIT. The retained licence is `app/assets/icons/CUSTOM-BRAND-ICONS-LICENSE.txt`. ABC and SBS sources were replaced during the public-source review. Exact revisions, source files and extraction/recolour notes are in `SOURCES.json`. |
 | Art, apps, settings and home outlines | Original CleanFrame drawings, covered by the project's MIT licence. |
 
 Brand marks identify services. Their owners retain trademark rights; this project claims no endorsement or affiliation. The older Australian TV icon archive's GPL text is retained for historical provenance only; no current icon uses that archive.
@@ -30,7 +30,7 @@ Photographers retain their rights. Wallpapers, thumbnails, panel backgrounds and
 
 ## Online data sources (personal builds only)
 
-Public builds make no service requests. A personal build with `.local/integrations.json` contacts the services its owner configures: the [National Weather Service API](https://www.weather.gov/documentation/services-web-api) (public domain), [Open-Meteo](https://open-meteo.com/) (data under CC BY 4.0, credited on the weather rail; its free API is for non-commercial use), ESPN's unofficial public site API (undocumented, with no stated terms of use), the RSS feeds the owner chooses, and the owner's own Plex, Home Assistant and Immich servers. Each source retains its own terms; the owner is responsible for following them.
+Public builds make no service requests. A personal build with `.local/integrations.json` contacts the services its owner configures: the [National Weather Service API](https://www.weather.gov/documentation/services-web-api) (public domain), [Open-Meteo](https://open-meteo.com/) (data under CC BY 4.0, credited on the weather rail; its free API is for non-commercial use), ESPN's unofficial public site API (undocumented, with no stated terms of use), the RSS feeds the owner chooses, and the owner's own Plex, Home Assistant and Immich servers (the Plex integration also plays files from the server and reports playback progress to it). Each source retains its own terms; the owner is responsible for following them.
 
 ## Development dependencies and exports
 

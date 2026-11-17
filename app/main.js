@@ -23,7 +23,7 @@
     { id: 'disneyplus', name: 'Disney+', mark: true, appId: '3201901017640' },
     { id: 'primevideo', name: 'Prime Video', mark: true, appId: '3201910019365' },
     { id: 'hbomax', name: 'HBO Max', mark: true, appId: '3201601007230' },
-    { id: 'hulu', name: 'Hulu', mark: false, appId: '3201601007625' },
+    { id: 'hulu', name: 'Hulu', mark: true, appId: '3201601007625' },
     { id: 'appletv', name: 'Apple TV', mark: true, appId: '3201807016597' },
     { id: 'plex', name: 'Plex', mark: false, appId: '3201512006963' },
     { id: 'spotify', name: 'Spotify', mark: true, appId: '3201606009684' },
@@ -571,11 +571,280 @@
     railNote.timer = setTimeout(function () { railNote.text = ''; render(); }, 5000);
   }
   function plexAppId() { var a = app('plex'); return catalog.loaded && a && ALPHA.indexOf('plex') >= 0 ? a.appId : FEEDS.plex.appId(); }
+  /* ---------- Plex in-screen player (adapted from TV Dashboard) ----------
+     Plays a Plex file in a full-screen <video> over Home and reports progress back to the
+     server (resume points and watched state stay in sync with Plex's own apps), because the
+     Plex TV app refuses playback started from another device. The panel offers resume and
+     episode lists; the player draws its own subtitles from Plex's sidecar text streams.
+     Direct play only: whether a given file plays depends on the TV's codecs, confirmed on the
+     set, not here. */
+  var plexPlayer = (function () {
+    var REPORT_EVERY = 10000, WATCHED = 0.9, UP_NEXT = 10;
+    var player = null, panel = null, panelEls = [], panelIdx = 0, busy = false;
+
+    function clockText(s) {
+      if (!isFinite(s)) return '--:--';
+      s = Math.floor(s);
+      var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s % 60;
+      return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    function epName(m) { return 'S' + m.parentIndex + ' · E' + m.index + ' · ' + m.title; }
+    function label(m) { return m.type === 'episode' ? m.grandparentTitle + ' · ' + epName(m) : m.title; }
+    function active() { return busy || panelOpen() || !!player; }
+    function panelOpen() { return !!panel && !panel.hidden; }
+    function videoPlaying() { return !!player; }
+
+    /* ---------- resume / episode panel ---------- */
+    function showPanel(html) {
+      if (!panel) { panel = document.createElement('div'); panel.className = 'plex-panel'; stage.appendChild(panel); }
+      panel.innerHTML = html; panel.hidden = false;
+      panelEls = Array.prototype.slice.call(panel.querySelectorAll('[data-pa]'));
+      setPanelFocus(0);
+      return panel;
+    }
+    function setPanelFocus(i) {
+      if (!panelEls.length) return;
+      panelIdx = clamp(i, 0, panelEls.length - 1);
+      panelEls.forEach(function (el, n) { el.className = el.className.replace(/\s*is-focus/g, '') + (n === panelIdx ? ' is-focus' : ''); });
+      var el = panelEls[panelIdx];
+      if (el.scrollIntoView) { try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { el.scrollIntoView(); } }
+    }
+    function closePanel() { if (panel) { panel.hidden = true; panel.innerHTML = ''; } panelEls = []; }
+    function choiceHtml(pa, key, offset, text, cls) {
+      return '<div class="pp-choice' + (cls ? ' ' + cls : '') + '" data-pa="' + pa + '" data-key="' + esc(String(key)) + '"' + (offset !== undefined ? ' data-offset="' + offset + '"' : '') + '>' + text + '</div>';
+    }
+
+    function open(key) {
+      busy = true;
+      return FEEDS.plex.meta(key).then(function (m) {
+        busy = false;
+        var off = m.viewOffset || 0, dur = m.duration || Infinity;
+        if (off > 60000 && off < dur * 0.95) {
+          showPanel('<h2 class="pp-title">' + esc(label(m)) + '</h2><p class="pp-hint-line">Back to close</p><div class="pp-choices">'
+            + choiceHtml('start', key, off, '▶ Resume from ' + clockText(off / 1000))
+            + choiceHtml('start', key, 0, '↺ Start from the beginning') + '</div>');
+          after();
+          return;
+        }
+        play(key, 0, m);
+      }, function (e) { busy = false; message('Can’t open this (' + (e && e.message || 'error') + ')'); after(); });
+    }
+    function nextUp(eps) {
+      var last = -1, i;
+      eps.forEach(function (e, n) { if (e.viewCount) last = n; });
+      for (i = last + 1; i < eps.length; i++) if (eps[i].viewOffset) return eps[i];
+      return eps[last + 1] || eps[0];
+    }
+    function epRow(e, next) {
+      var state = e.viewCount ? '<span class="pp-check">✓</span>'
+        : e.viewOffset && e.duration ? '<span class="pp-mini"><i style="width:' + Math.round(e.viewOffset / e.duration * 100) + '%"></i></span>' : '';
+      return '<div class="pp-ep' + (e.viewCount ? ' is-watched' : '') + (e === next ? ' is-next' : '') + '" data-pa="open" data-key="' + esc(String(e.ratingKey)) + '">'
+        + '<span class="pp-num">' + e.index + '</span><span class="pp-ep-title">' + esc(e.title) + '</span>' + state + '</div>';
+    }
+    function openShow(showKey) {
+      busy = true;
+      return Promise.all([FEEDS.plex.meta(showKey), FEEDS.plex.episodes(showKey)]).then(function (r) {
+        busy = false;
+        var show = r[0], eps = r[1];
+        if (!eps.length) { message('No episodes found'); after(); return; }
+        var next = nextUp(eps), seasons = [], bySeason = {};
+        eps.forEach(function (e) { if (!bySeason[e.parentIndex]) { bySeason[e.parentIndex] = []; seasons.push(e.parentIndex); } bySeason[e.parentIndex].push(e); });
+        showPanel('<h2 class="pp-title">' + esc(show.title) + '</h2><p class="pp-hint-line">Back to close</p>'
+          + '<div class="pp-next" data-pa="open" data-key="' + esc(String(next.ratingKey)) + '"><span class="pp-label">' + (next.viewOffset && !next.viewCount ? 'Continue' : 'Next up') + '</span>' + esc(epName(next)) + '</div>'
+          + '<div class="pp-scroll">' + seasons.map(function (sn) {
+            return '<div class="pp-season">Season ' + sn + '</div>' + bySeason[sn].map(function (e) { return epRow(e, next); }).join('');
+          }).join('') + '</div>');
+        after();
+      }, function (e) { busy = false; message('Can’t open this show (' + (e && e.message || 'error') + ')'); after(); });
+    }
+
+    /* ---------- the video ---------- */
+    function report(p, state) {
+      var t = p.video.currentTime * 1000, d = p.meta && p.meta.duration || p.video.duration * 1000;
+      if (!p.meta || !d) return;
+      FEEDS.plex.timeline(p.key, state, t, d);
+    }
+    function nearEnd(p) { var v = p.video; return v.duration && v.currentTime / v.duration >= WATCHED; }
+
+    function play(key, offset, m) {
+      closePanel(); stop(true);
+      var el = document.createElement('div');
+      el.className = 'plex-player';
+      el.innerHTML = '<video></video><div class="pp-sub" hidden></div><div class="pp-osd"><div class="pp-name"></div>'
+        + '<div class="pp-bar"><i></i></div><div class="pp-osd-row"><span class="pp-time"></span><span class="pp-keys"></span></div></div><div class="pp-msg" hidden></div>';
+      stage.appendChild(el);
+      stage.className = stage.className.replace(/\s*has-video/g, '') + ' has-video';
+      var p = player = { el: el, video: el.querySelector('video'), key: String(key), meta: null, subs: [], sub: -1, cues: null };
+      var v = p.video;
+      v.setAttribute('playsinline', ''); v.muted = false;
+      say(p, 'Loading…');
+      v.addEventListener('playing', function () { say(p, ''); report(p, 'playing'); osd(p); });
+      v.addEventListener('pause', function () { if (!p.ended && !p.closed) { report(p, 'paused'); osd(p, true); } });
+      v.addEventListener('timeupdate', function () { renderSub(p); if (p.el.querySelector('.pp-osd.is-on')) updateOsd(p); });
+      v.addEventListener('ended', function () { finished(p); });
+      v.addEventListener('error', function () {
+        var codes = { 1: 'stopped', 2: 'network error', 3: 'decode error', 4: 'format not supported' };
+        message('Can’t play this file here (' + (v.error && codes[v.error.code] || 'error') + ')', p);
+      });
+      p.timer = setInterval(function () { if (player === p && !v.paused) report(p, 'playing'); }, REPORT_EVERY);
+      videoStarted();
+      (m ? Promise.resolve(m) : FEEDS.plex.meta(key)).then(function (m) {
+        if (player !== p) return;
+        var media = m.Media && m.Media[0], part = media && media.Part && media.Part[0];
+        if (!part) throw new Error('no file');
+        p.meta = m;
+        p.subs = (part.Stream || []).filter(function (s) { return s.streamType === 3 && s.key; });
+        p.el.querySelector('.pp-name').textContent = label(m);
+        if (offset) v.addEventListener('loadedmetadata', function () { try { v.currentTime = offset / 1000; } catch (e) { /* not seekable yet */ } });
+        v.src = FEEDS.plex.streamUrl(part.key);
+        var chosen = p.subs.filter(function (s) { return s.selected; })[0];
+        if (chosen) setSub(p, p.subs.indexOf(chosen));
+        var go = v.play && v.play(); if (go && go.catch) go.catch(function () {});
+      }, function (e) { if (player === p) message('Can’t start this (' + (e && e.message || 'error') + ')', p); });
+    }
+
+    function stop(handoff) {
+      var p = player;
+      if (!p) return;
+      player = null; p.closed = true;
+      clearInterval(p.timer); clearTimeout(p.msgTimer); clearTimeout(p.osdTimer); clearInterval(p.upTimer);
+      if (!p.ended) { report(p, 'stopped'); if (nearEnd(p)) FEEDS.plex.scrobble(p.key); }
+      p.video.pause(); p.video.removeAttribute('src'); p.video.load();
+      if (p.el.parentNode) p.el.parentNode.removeChild(p.el);
+      stage.className = stage.className.replace(/\s*has-video/g, '');
+      if (handoff !== true) { videoStopped(); if (FEEDS) setTimeout(function () { FEEDS.retry('plex'); }, 2500); after(); }
+    }
+
+    function finished(p) {
+      if (p.ended || p.closed) return;
+      p.ended = true; report(p, 'stopped'); FEEDS.plex.scrobble(p.key);
+      if (!p.meta || p.meta.type !== 'episode') { stop(); return; }
+      FEEDS.plex.episodes(p.meta.grandparentRatingKey).then(function (eps) {
+        if (player !== p) return;
+        var i = -1, n;
+        eps.forEach(function (e, x) { if (String(e.ratingKey) === p.key) i = x; });
+        n = eps[i + 1];
+        if (!n) { stop(); return; }
+        p.next = n;
+        var left = UP_NEXT, tick = function () {
+          if (left <= 0) { playNext(p); return; }
+          say(p, 'Up next: ' + epName(n) + ' in ' + left + ' s · OK to start · Back to stop');
+          left--;
+        };
+        tick(); p.upTimer = setInterval(tick, 1000);
+      }, function () { if (player === p) stop(); });
+    }
+    function playNext(p) { clearInterval(p.upTimer); var next = p.next; p.next = null; play(String(next.ratingKey), 0, null); }
+
+    /* ---------- messages, OSD ---------- */
+    function message(text, p) {
+      p = p || player;
+      if (p) { say(p, text, 6000); return; }
+      // No player yet (open/show failed): a brief toast on a bare overlay.
+      var el = document.createElement('div'); el.className = 'plex-player is-toast';
+      el.innerHTML = '<div class="pp-msg">' + esc(text) + '</div>'; stage.appendChild(el);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4000);
+    }
+    function say(p, text, closeAfter) {
+      var m = p.el.querySelector('.pp-msg'); m.textContent = text; m.hidden = !text;
+      clearTimeout(p.msgTimer);
+      if (closeAfter) p.msgTimer = setTimeout(function () { if (player === p) stop(); }, closeAfter);
+    }
+    function osd(p, stay) {
+      var o = p.el.querySelector('.pp-osd'); o.className = 'pp-osd is-on'; updateOsd(p);
+      clearTimeout(p.osdTimer);
+      if (!stay) p.osdTimer = setTimeout(function () { if (player === p && !p.video.paused) o.className = 'pp-osd'; }, 4000);
+    }
+    function updateOsd(p) {
+      var v = p.video, d = v.duration;
+      p.el.querySelector('.pp-bar i').style.width = (d ? v.currentTime / d * 100 : 0) + '%';
+      p.el.querySelector('.pp-time').textContent = clockText(v.currentTime) + ' / ' + clockText(d);
+      p.el.querySelector('.pp-keys').textContent = (v.paused ? 'Paused · ' : '') + 'OK pause · ◀ 10s · ▶ 30s · ▲ subtitles: ' + subName(p) + ' · Back stop';
+    }
+
+    /* ---------- subtitles ---------- */
+    function subName(p) { if (!p.subs.length) return 'none'; if (p.sub < 0) return 'off'; var s = p.subs[p.sub]; return s.displayTitle || s.language || 'on'; }
+    function setSub(p, i) {
+      p.sub = i; p.cues = null; renderSub(p);
+      if (i < 0) return;
+      FEEDS.plex.subText(p.subs[i].key).then(function (text) { if (player === p && p.sub === i) { p.cues = parseSubs(text); renderSub(p); } }, function () { if (player === p) say(p, 'Couldn’t load those subtitles'); });
+    }
+    function parseSubs(text) {
+      var cues = [], re = /(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/;
+      String(text).replace(/\r/g, '').split(/\n\s*\n/).forEach(function (block) {
+        var lines = block.split('\n'), at = -1, t, secs;
+        lines.forEach(function (l, n) { if (at < 0 && re.test(l)) at = n; });
+        if (at < 0) return;
+        t = re.exec(lines[at]);
+        secs = function (h, m, s, ms) { return +h * 3600 + +m * 60 + +s + +ms / 1000; };
+        cues.push({ from: secs(t[1], t[2], t[3], t[4]), to: secs(t[5], t[6], t[7], t[8]), text: lines.slice(at + 1).join('\n').replace(/<[^>]+>|\{[^}]+\}/g, '').trim() });
+      });
+      return cues;
+    }
+    function renderSub(p) {
+      var box = p.el.querySelector('.pp-sub'), t = p.video.currentTime, text = '', i;
+      if (p.cues) for (i = 0; i < p.cues.length; i++) { if (p.cues[i].from > t) break; if (p.cues[i].to >= t) text = p.cues[i].text; }
+      box.hidden = !text;
+      if (box.textContent !== text) box.textContent = text;
+    }
+
+    /* ---------- remote keys ---------- */
+    function key(k) {
+      if (!active()) return false;
+      if (busy) return true;
+      if (panelOpen()) {
+        if (k === 'up') setPanelFocus(panelIdx - 1);
+        else if (k === 'down') setPanelFocus(panelIdx + 1);
+        else if (k === 'ok') activateChoice();
+        else if (k === 'back') { closePanel(); after(); }
+        return true;
+      }
+      var p = player, v = p.video;
+      if (p.next) { if (k === 'ok' || k === 'playpause') playNext(p); else if (k === 'back') stop(); return true; }
+      if (k === 'ok' || k === 'playpause') { if (v.paused) { var g = v.play(); if (g && g.catch) g.catch(function () {}); } else v.pause(); }
+      else if (k === 'left' || k === 'prev') { try { v.currentTime = Math.max(0, v.currentTime - 10); } catch (e) {} osd(p, v.paused); }
+      else if (k === 'right' || k === 'next') { try { v.currentTime = v.currentTime + 30; } catch (e) {} osd(p, v.paused); }
+      else if (k === 'up') {
+        if (!p.subs.length) { osd(p, v.paused); say(p, 'No subtitle files for this one'); clearTimeout(p.msgTimer); p.msgTimer = setTimeout(function () { if (player === p) say(p, ''); }, 2500); }
+        else { setSub(p, p.sub + 1 >= p.subs.length ? -1 : p.sub + 1); osd(p, v.paused); }
+      }
+      else if (k === 'down') osd(p, v.paused);
+      else if (k === 'back') stop();
+      return true;
+    }
+    function activateChoice() {
+      var el = panelEls[panelIdx]; if (!el) return;
+      var pa = el.getAttribute('data-pa'), key = el.getAttribute('data-key'), off = +el.getAttribute('data-offset') || 0;
+      if (pa === 'start') { closePanel(); play(key, off, null); }
+      else if (pa === 'open') open(key);
+    }
+    function hide() { if (player) stop(); else if (panelOpen()) { closePanel(); after(); } }
+
+    return {
+      open: open, openShow: openShow, key: key, active: active, panelOpen: panelOpen, videoPlaying: videoPlaying, hide: hide,
+      busy: function () { return busy; },
+      /* QA read-only getters */
+      currentKey: function () { return player && player.key || null; },
+      videoSrc: function () { return player && player.video.getAttribute('src') || null; },
+      paused: function () { return player ? player.video.paused : null; },
+      message: function () { var m = stage.querySelector('.plex-player .pp-msg:not([hidden])'); return m ? m.textContent : ''; },
+      subtitleText: function () { var s = stage.querySelector('.pp-sub:not([hidden])'); return s ? s.textContent : ''; },
+      subName: function () { return player ? subName(player) : null; },
+      upNext: function () { return !!(player && player.next); },
+      choices: function () { return panelEls.map(function (el, i) { return { label: el.textContent.replace(/\s+/g, ' ').trim(), focus: i === panelIdx, pa: el.getAttribute('data-pa') }; }); }
+    };
+  }());
+
   function railOk(t, r, it) {
     if (!it) return;
     if (it.kind === 'app') launch(it.id);
     else if (it.kind === 'add') addAppsRoute();
-    else if (it.kind === 'poster' || it.kind === 'more') perform('Plex', function (done) { FrameDevice.launchApp(plexAppId(), done); });
+    else if (it.kind === 'more') perform('Plex', function (done) { FrameDevice.launchApp(plexAppId(), done); });
+    else if (it.kind === 'poster') {
+      // Posters play in-screen; a missing key (older cache) falls back to opening the app.
+      if (it.data && it.data.key && it.data.play) { if (it.data.play === 'show') plexPlayer.openShow(it.data.key); else plexPlayer.open(it.data.key); }
+      else perform('Plex', function (done) { FrameDevice.launchApp(plexAppId(), done); });
+    }
     else if (it.kind === 'ha') {
       say('home', it.data.routine ? 'Running ' + it.data.name + '…' : '');
       FEEDS.home.run(it.data.id, function (err) { say('home', err ? err.message : it.data.routine ? it.data.name + ' started.' : ''); render(); });
@@ -1260,7 +1529,10 @@
       fillTicker(); stepTicker();
     };
   }
-  function tickerRunning() { return !document.hidden && top().id === 'home'; }
+  function tickerRunning() { return !document.hidden && top().id === 'home' && !plexPlayer.videoPlaying(); }
+  // Playing a video frees the TV's GPU: pause the headline conveyor and the photo table.
+  function videoStarted() { renderTicker(); syncAmbient(); }
+  function videoStopped() { renderTicker(); syncAmbient(); focusStage(); }
   function renderTicker() {
     var st = feed('news'), on = st.status === 'ready' && st.data.length > 0;
     tickerEl.className = 'ticker' + (on ? ' is-on' : '');
@@ -1282,7 +1554,7 @@
   var KEEP_CLEAR = [{ x1: 0, y1: 0, x2: 720, y2: 310 }, { x1: 1180, y1: 0, x2: 1920, y2: 200 }];
   var ambient = { table: $('photoTable'), timer: 0, busy: false, shown: false, error: null, z: 1, recent: [], placed: 0 };
   function rand(a, b) { return a + Math.random() * (b - a); }
-  function ambientWanted() { return S.c.bg === 'photos' && !!FEEDS && FEEDS.configured('photos') && !document.hidden && feedsStarted; }
+  function ambientWanted() { return S.c.bg === 'photos' && !!FEEDS && FEEDS.configured('photos') && !document.hidden && feedsStarted && !plexPlayer.videoPlaying(); }
   function covered(x, y, w, h) {
     var total = 0;
     KEEP_CLEAR.forEach(function (z) {
@@ -1827,9 +2099,19 @@
     pointAt(el);
   });
   var heldKeys = {};
+  // Media keys reach the player only; arrows/OK/Back come through KEYS.
+  var MEDIA = { 10252: 'playpause', 415: 'playpause', 19: 'playpause', 10233: 'next', 417: 'next', 10232: 'prev', 412: 'prev', 413: 'back' };
   document.addEventListener('keydown', function (ev) {
-    var code = ev.keyCode, k = KEYS[code];
+    var code = ev.keyCode, k = KEYS[code], pk;
     if (code === 9) { ev.preventDefault(); return; }
+    if (plexPlayer.active()) {
+      pk = k || MEDIA[code];
+      if (!pk || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      ev.preventDefault();
+      if (pk === 'ok' || pk === 'back' || pk === 'playpause') { if (ev.repeat || heldKeys[code]) return; heldKeys[code] = true; }
+      plexPlayer.key(pk);
+      return;
+    }
     if (!k || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     ev.preventDefault();
     if (k === 'ok' || k === 'back') { if (ev.repeat || heldKeys[code]) return; heldKeys[code] = true; }
@@ -1840,7 +2122,7 @@
   window.addEventListener('focus', function () { FrameDevice.cancelSource(); release(); refreshInputsOnReturn(); focusStage(); after(); updateClock(); });
   document.addEventListener('visibilitychange', function () {
     heldKeys = {};
-    if (document.hidden) { FrameDevice.cancelSource(); pauseRotation(); clearTimeout(clockTimer); if (FEEDS) FEEDS.hide(); syncAmbient(); }
+    if (document.hidden) { plexPlayer.hide(); FrameDevice.cancelSource(); pauseRotation(); clearTimeout(clockTimer); if (FEEDS) FEEDS.hide(); syncAmbient(); }
     else {
       release();
       if (photoBg() && !S.pending && !S.previewBundle && (!committedBundle || S.bundleKey !== bundleKey(S.c))) setLook({}, { transient: true, startup: true });
@@ -1883,6 +2165,7 @@
     out.home = { zone: S.stack[0].f.zone, rail: S.stack[0].f.r, util: S.stack[0].f.u };
     out.feeds = FEEDS ? ['weather', 'news', 'sports', 'plex', 'home'].reduce(function (o, n) { var st = FEEDS.state(n); o[n] = { status: st.status, error: st.error }; return o; }, {}) : null;
     out.ambient = { shown: ambient.shown, error: ambient.error, prints: ambient.table.querySelectorAll('.print:not(.leaving)').length, placed: ambient.placed };
+    out.player = { active: plexPlayer.active(), panel: plexPlayer.panelOpen(), playing: plexPlayer.videoPlaying(), key: plexPlayer.currentKey(), src: plexPlayer.videoSrc(), paused: plexPlayer.paused(), message: plexPlayer.message(), subtitle: plexPlayer.subtitleText(), subName: plexPlayer.subName(), upNext: plexPlayer.upNext(), choices: plexPlayer.choices() };
     return JSON.parse(JSON.stringify(out));
   };
   QA.where = function () {
@@ -1899,6 +2182,7 @@
 
   /* ---------- Start ---------- */
   initialise();
+  FrameDevice.registerMediaKeys();
   setLook({}, { transient: true, startup: true });
   norm(); render(); fit(); focusStage(); updateClock(); syncRotation(); startFeeds();
 })();
