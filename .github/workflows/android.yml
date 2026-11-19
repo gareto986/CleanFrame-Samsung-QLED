@@ -1,0 +1,48 @@
+name: Android APK (Shield)
+
+# Builds the NVIDIA Shield / Android TV APK on GitHub's runners, so no local Android Studio is
+# needed. Download the APK from the run's Artifacts, then sideload it to the Shield with adb.
+on:
+  push:
+    branches: [claude/shield-android, main]
+    paths: ['android/**', 'app/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Optional: set repo secret CLEANFRAME_INTEGRATIONS_JSON to your integrations.json contents
+      # to bake Plex/Home Assistant/weather/etc. into the APK. The APK then holds your tokens,
+      # so keep it private. Leave the secret unset to build a config-less APK (apps only).
+      CFG: ${{ secrets.CLEANFRAME_INTEGRATIONS_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: yes | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+
+      - name: Add integrations config (optional)
+        if: ${{ env.CFG != '' }}
+        run: printf 'window.CleanFrameIntegrations = %s;\n' "$CFG" > android/web-overlay/integrations.js
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cleanframe-shield-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

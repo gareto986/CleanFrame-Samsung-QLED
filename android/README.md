@@ -5,7 +5,7 @@ hosted in a full-screen WebView, with a small native bridge replacing the Tizen 
 It can be installed as an ordinary app or set as the Shield's **Home launcher**.
 
 > **Status: scaffold.** This has not been built or tested on a device from this repository. It
-> needs Android Studio and a Shield to build, install and verify. The app-id map and the remote
+> builds on GitHub Actions or Android Studio, and needs a Shield to install and verify. The app-id map and the remote
 > behaviour below are best-effort and must be confirmed on the device.
 
 ## How it reuses the web UI
@@ -22,7 +22,27 @@ overlays two Android-specific files:
 So a change to the rails Home, the Plex player, weather, Home Assistant, etc. is made once in
 `../app` and both platforms get it.
 
-## Build
+## Build with GitHub Actions (no Android Studio)
+
+GitHub builds the APK for you. The workflow at `.github/workflows/android.yml` runs on every
+push to the `claude/shield-android` branch (and can be run by hand from the repo's **Actions**
+tab → *Android APK (Shield)* → **Run workflow**). When it finishes, open the run and download
+the **cleanframe-shield-apk** artifact, unzip it, and sideload `app-debug.apk` to the Shield:
+
+```sh
+adb connect <shield-ip>:5555     # Shield: Settings → Device Preferences → Developer options → Network debugging
+adb install -r app-debug.apk
+```
+
+The debug APK is signed with Android's debug key, which is fine for personal sideloading.
+
+**To include your integrations** (Plex, Home Assistant, weather, Immich, Moonlight), add a repo
+secret **`CLEANFRAME_INTEGRATIONS_JSON`** (Settings → Secrets and variables → Actions) whose
+value is the contents of your `.local/integrations.json`. The workflow bakes it into the APK.
+The APK then holds your tokens, so keep that build private; leave the secret unset for a
+config-less APK (apps only). Actions must be enabled for the repo (Actions tab).
+
+## Build locally with Android Studio
 
 Prerequisites: **Android Studio** (Giraffe or newer), **Android SDK 34**, **JDK 17**.
 
