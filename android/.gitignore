@@ -1,0 +1,10 @@
+# Build output and generated web assets (copied from ../app at build time).
+/.gradle/
+/build/
+/app/build/
+/app/src/main/assets/web/
+/local.properties
+.idea/
+*.iml
+# Private integration config overlaid into the APK (owner's tokens): never commit.
+/web-overlay/integrations.js

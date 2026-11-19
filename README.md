@@ -74,6 +74,10 @@ The detailed [device record](docs/tv-status.md) separates observed results from 
 
 For power-on behaviour, the physical Home button, the remote's branded app buttons and what is and is not reachable, see [Home button and power-on](docs/home-and-power-on.md).
 
+## Android TV / NVIDIA Shield
+
+An experimental port that runs the **same** web UI as a launcher on Android TV (for example an NVIDIA Shield) lives in [`android/`](android/README.md). It hosts the interface in a WebView with a native bridge replacing the Tizen device layer, reuses `app/` unchanged, and can be set as the Shield's Home screen. It is a scaffold: it builds with Android Studio and has not yet been run on a device.
+
 ## Develop and check
 
 ```sh

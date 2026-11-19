@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#11151A" android:pathData="M0,0h320v180H0z" />
+    <!-- picture-frame glyph -->
+    <path android:strokeColor="#F4F1EA" android:strokeWidth="5" android:fillColor="#00000000"
+        android:pathData="M44,46 h58 a8,8 0 0 1 8,8 v72 a8,8 0 0 1 -8,8 h-58 a8,8 0 0 1 -8,-8 v-72 a8,8 0 0 1 8,-8 z" />
+    <path android:fillColor="#F4F1EA" android:pathData="M58,118 l14,-20 10,12 8,-9 12,17 z" />
+    <path android:fillColor="#8FB4C9" android:pathData="M68,70 m-7,0 a7,7 0 1 0 14,0 a7,7 0 1 0 -14,0" />
+    <!-- wordmark drawn as simple strokes so it reads without a font -->
+    <path android:fillColor="#F4F1EA"
+        android:pathData="M140,64 h10 v52 h-10 z M158,64 h10 v42 h18 v10 h-28 z M196,64 h10 v52 h-10 z M230,64 h10 v28 a10,10 0 0 1 -10,10 h-14 a10,10 0 0 1 -10,-10 v-28 h10 v26 a3,3 0 0 0 3,3 h8 a3,3 0 0 0 3,-3 z" />
+</vector>

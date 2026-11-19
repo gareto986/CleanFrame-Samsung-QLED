@@ -1,0 +1,48 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    namespace 'com.cleanframe.tv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.cleanframe.tv"
+        minSdk 26          // Android TV (Shield runs Android 8+); adaptive icons only
+        targetSdk 34
+        versionCode 1
+        versionName "0.8"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug   // sideload/personal; use your own key to publish
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+}
+
+// Reuse the web UI: copy ../../app into the APK's assets at build time, then overlay the
+// Android device layer (and the owner's private integrations config, if present). One source
+// of truth: the Tizen widget and the Shield app build from the same app/.
+def webDst = file('src/main/assets/web')
+
+tasks.register('syncWeb', Copy) {
+    from(rootProject.file('../app')) {
+        exclude 'assets/materials/**'   // glass materials are unused by the rails Home
+    }
+    into webDst
+    doLast {
+        copy { from(rootProject.file('../android/web-overlay/device.js')); into webDst }
+        def cfg = rootProject.file('../android/web-overlay/integrations.js')
+        if (cfg.exists()) { copy { from cfg; into file('src/main/assets/web/assets') } }
+    }
+}
+tasks.named('preBuild') { dependsOn 'syncWeb' }
