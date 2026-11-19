@@ -2,6 +2,7 @@ name: Android APK (Shield)
 
 # Builds the NVIDIA Shield / Android TV APK on GitHub's runners, so no local Android Studio is
 # needed. Download the APK from the run's Artifacts, then sideload it to the Shield with adb.
+# Uses the Android SDK preinstalled on the ubuntu runner (ANDROID_SDK_ROOT is set there).
 on:
   push:
     branches: [claude/shield-android, main]
@@ -27,11 +28,6 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
-      - uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages
-        run: yes | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
 
       - name: Add integrations config (optional)
         if: ${{ env.CFG != '' }}
