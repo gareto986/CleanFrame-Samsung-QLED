@@ -90,4 +90,25 @@
     try { Object.defineProperty(e, 'keyCode', { value: code }); Object.defineProperty(e, 'which', { value: code }); } catch (x) {}
     document.dispatchEvent(e);
   };
+
+  /* Viewport: keep the page's width=device-width, and re-run the UI's scale-to-fit a few times
+     once the WebView has settled its real size (it reports a stale size on first paint). */
+  (function () {
+    var vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) { vp = document.createElement('meta'); vp.setAttribute('name', 'viewport'); (document.head || document.documentElement).appendChild(vp); }
+    vp.setAttribute('content', 'width=device-width, initial-scale=1, user-scalable=no');
+    function refit() { try { window.dispatchEvent(new Event('resize')); } catch (e) {} }
+    [0, 60, 250, 800, 1500].forEach(function (ms) { setTimeout(refit, ms); });
+    window.addEventListener('load', refit);
+    window.addEventListener('load', function () {
+      // Brief readout, top-right, auto-hides. If scaling still looks wrong, report these numbers.
+      setTimeout(function () {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;top:10px;right:10px;z-index:99999;background:rgba(0,0,0,.6);color:#fff;font:16px monospace;padding:4px 10px;border-radius:6px;pointer-events:none';
+        d.textContent = 'view ' + window.innerWidth + 'x' + window.innerHeight + ' dpr' + (window.devicePixelRatio || 1);
+        (document.body || document.documentElement).appendChild(d);
+        setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 9000);
+      }, 600);
+    });
+  }());
 }());

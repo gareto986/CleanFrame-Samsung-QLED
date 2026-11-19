@@ -53,6 +53,12 @@ class MainActivity : Activity() {
         s.allowUniversalAccessFromFileURLs = true
         s.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         s.cacheMode = WebSettings.LOAD_NO_CACHE
+        // Honour the page's width=device-width so the 1920x1080 design scales to the screen,
+        // instead of the WebView's default ~980px layout width (which leaves the UI tiny).
+        s.useWideViewPort = true
+        s.loadWithOverviewMode = true
+        s.setSupportZoom(false)
+        s.builtInZoomControls = false
 
         web.webViewClient = WebViewClient()
         web.addJavascriptInterface(WebBridge(this), "AndroidTV")
