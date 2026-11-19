@@ -78,8 +78,9 @@
     done(err ? { message: err } : null);
   }
   function registerMediaKeys() { /* Android delivers media keys through the Activity already. */ }
+  function supportsInputs() { return false; } // the Shield has no HDMI inputs
 
-  window.FrameDevice = { brandOf: brandOf, registerMediaKeys: registerMediaKeys, launch: launch, launchApp: launchApp,
+  window.FrameDevice = { brandOf: brandOf, registerMediaKeys: registerMediaKeys, supportsInputs: supportsInputs, launch: launch, launchApp: launchApp,
     art: art, home: home, settings: settings, apps: apps, sources: sources, setSource: setSource, cancelSource: cancelSource };
 
   /* The Activity forwards remote keys here as web keyboard events the UI already understands. */

@@ -471,7 +471,11 @@
   }
 
   /* ---------- Navigation targets ---------- */
-  function utils() { return ['inputs', 'apps', 'settings']; }
+  function utils() {
+    var u = ['apps', 'settings'];
+    if (!FrameDevice.supportsInputs || FrameDevice.supportsInputs()) u.unshift('inputs');
+    return u;
+  }
   function utilAction(u) {
     if (u === 'inputs') openInputs('home');
     else if (u === 'apps') openApps();
@@ -1212,11 +1216,12 @@
     if (t.group === 'typography') return [{ id: 'font', title: '', items: options('font', LOOK_VALUES.font) }];
     if (t.group === 'rotation') return [{ id: 'mode', title: '', items: options('mode', MODES.map(function (m) { return m.id; }), flat),
       reason: flat ? 'Choose Wallpaper in Background to use rotation.' : 'Timed changes pause while Settings or another panel is open.' }];
-    return [{ id: 'samsung', title: '', items: [
+    var samsung = [
       { action: 'samsung.home', label: 'Samsung Home', description: 'Open Samsung’s Home screen' },
-      { action: 'samsung.settings', label: 'TV settings', description: 'Picture, sound and network settings' },
-      { action: 'samsung.inputs', label: 'Inputs', description: 'Choose an HDMI input' }
-    ] }];
+      { action: 'samsung.settings', label: 'TV settings', description: 'Picture, sound and network settings' }
+    ];
+    if (!FrameDevice.supportsInputs || FrameDevice.supportsInputs()) samsung.push({ action: 'samsung.inputs', label: 'Inputs', description: 'Choose an HDMI input' });
+    return [{ id: 'samsung', title: '', items: samsung }];
   }
   function backLabel(t) { return t.group === 'rotation' ? 'Background' : t.group === 'inputs' ? t.origin === 'home' ? 'Home' : 'Samsung' : 'Settings'; }
   function detailRows(t) {
